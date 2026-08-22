@@ -1,0 +1,1 @@
+Synthetic data and the local SQLite database live here. Nothing here is ever real customer data. `.gitignore` excludes the actual `.db` file — only this README and the generator script's output format are tracked.

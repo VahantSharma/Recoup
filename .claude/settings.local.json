@@ -1,0 +1,10 @@
+{
+  "enabledMcpjsonServers": [
+    "razorpay",
+    "context7",
+    "filesystem",
+    "memory",
+    "playwright",
+    "github"
+  ]
+}

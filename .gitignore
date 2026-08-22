@@ -1,0 +1,27 @@
+# secrets
+.env
+*.pem
+razorpay_test_api_keys_*.csv
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# node
+node_modules/
+dist/
+.vite/
+
+# data / logs
+data/*.db
+data/*.sqlite3
+logs/
+*.log
+
+# os / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json

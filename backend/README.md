@@ -1,0 +1,1 @@
+FastAPI backend goes here: the synthetic data generator, the classifier (rules + Claude structured output), the bounded decision engine, the audit log, and the metrics/API endpoints. See Day 1–4 in `../docs/buildathon-plan.md`.
