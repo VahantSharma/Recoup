@@ -25,3 +25,6 @@ logs/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+
+# playwright MCP debug snapshots (page-*.yml / console-*.log from browser-driven work)
+.playwright-mcp/
