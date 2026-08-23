@@ -184,6 +184,39 @@ def test_giving_up_on_the_action_path_does_not_suppress_a_later_organic_recovery
     assert state.route_to == "NOT_WORKED"
 
 
+def test_guardrail_counts_are_tallied_and_sum_matches_total_gate_calls():
+    from app.harness.run import run_arm_with_guardrail_counts
+
+    corpus = _small_corpus(n=1500)
+    results, counts = run_arm_with_guardrail_counts(
+        corpus, RulesOnlyPolicy(), master_seed=42, retry_delay_hours=24, max_case_lifetime_days=45,
+    )
+    total_attempts_proposed = sum(counts.values())
+    assert total_attempts_proposed > 0
+    # Every count key must be a real GateResult.reason -- "permitted" or one of the
+    # 8 guardrail rejection reasons, nothing else.
+    known_reasons = {
+        "permitted", "stale_reconcile", "unclassifiable_decline_human_review",
+        "hard_decline_stop", "risk_hard_stop", "already_resolved",
+        "amount_ceiling_needs_signoff", "network_attempt_budget_exhausted", "break_even_floor",
+    }
+    assert set(counts) <= known_reasons
+
+
+def test_risk_hard_stop_actually_fires_in_a_real_run():
+    """Regression test for the reachability fix: risk_hard_stop must show up with a
+    nonzero count in a real ablation run now that risk_flag_rate_bps gives non-hard
+    cases a chance to be risk-flagged -- before that fix this guardrail was
+    unit-tested but never exercised by any generated corpus."""
+    from app.harness.run import run_arm_with_guardrail_counts
+
+    corpus = _small_corpus(n=3000)
+    _, counts = run_arm_with_guardrail_counts(
+        corpus, RulesOnlyPolicy(), master_seed=42, retry_delay_hours=24, max_case_lifetime_days=45,
+    )
+    assert counts.get("risk_hard_stop", 0) > 0
+
+
 def test_every_case_appears_exactly_once_per_arm():
     corpus = _small_corpus(n=150)
     results = run_ablation(corpus, [ControlPolicy(), RulesOnlyPolicy()], master_seed=42)

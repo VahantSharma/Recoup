@@ -112,17 +112,23 @@ def _count_in_window(times: list[datetime], now: datetime, window_days: int) -> 
     return sum(1 for t in times if cutoff <= t < now)
 
 
-def run_arm(
+def _run_arm_impl(
     corpus: list[CaseDraft],
     policy: Policy,
     master_seed: int,
     retry_delay_hours: int,
     max_case_lifetime_days: int,
+    guardrail_counts: dict[str, int] | None,
 ) -> list[CaseArmResult]:
     """Runs one policy over the full corpus. Ground truth is drawn fresh here from the
     same (master_seed, case_id) every time this is called for the same case — that's
     what makes it identical across arms without needing to pass it in explicitly (the
-    paired design's whole point)."""
+    paired design's whole point).
+
+    guardrail_counts, if given, is mutated in place: every gate.evaluate() call's
+    GateResult.reason (one of the 8 guardrail names, or "permitted") is tallied there.
+    Optional and separate from CaseArmResult on purpose -- run_arm/run_ablation's
+    existing return shape is unchanged for every caller that doesn't need this."""
     queue = EventQueue()
     states: dict[str, _CaseState] = {}
     card_attempt_times: dict[str, list[datetime]] = {}
@@ -202,6 +208,8 @@ def run_arm(
             now=now,
             audit_only=audit_only,
         )
+        if guardrail_counts is not None:
+            guardrail_counts[result.reason] = guardrail_counts.get(result.reason, 0) + 1
         will_execute = (result.decision == "approved") or audit_only
         if result.decision == "rejected" and audit_only:
             state.violation_count += 1
@@ -225,6 +233,34 @@ def run_arm(
         )
         for s in states.values()
     ]
+
+
+def run_arm(
+    corpus: list[CaseDraft],
+    policy: Policy,
+    master_seed: int,
+    retry_delay_hours: int,
+    max_case_lifetime_days: int,
+) -> list[CaseArmResult]:
+    return _run_arm_impl(corpus, policy, master_seed, retry_delay_hours, max_case_lifetime_days, guardrail_counts=None)
+
+
+def run_arm_with_guardrail_counts(
+    corpus: list[CaseDraft],
+    policy: Policy,
+    master_seed: int,
+    retry_delay_hours: int,
+    max_case_lifetime_days: int,
+) -> tuple[list[CaseArmResult], dict[str, int]]:
+    """Same as run_arm, plus a count of how many times each of the gate's 8 guardrail
+    reasons (and "permitted") fired across every gate.evaluate() call this arm made --
+    the evidence that the gate is actually being exercised, not decorative. Only
+    meaningful for enforced arms that call the gate at all (control never does;
+    blind_retry calls it audit_only and ignores the verdict, so its counts describe
+    what *would* have been enforced, not what was)."""
+    counts: dict[str, int] = {}
+    results = _run_arm_impl(corpus, policy, master_seed, retry_delay_hours, max_case_lifetime_days, guardrail_counts=counts)
+    return results, counts
 
 
 def run_ablation(
