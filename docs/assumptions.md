@@ -171,9 +171,16 @@ to force a trigger. The formula itself *can* go negative — proven separately w
 extreme crafted input (attempt 40, ₹1) via `expected_value_milli_paise()` called
 directly, bypassing the budget cap on purpose — so the guardrail's logic is correct;
 it just never gets to bind given today's other guardrail's ceiling on attempt number.
-Becomes a real constraint once Day 4 adds a per-decision model inference cost to
-`cost_per_contact_attempt` — a $ per LLM call is a very different number from ₹0.13
-per WhatsApp message.
+
+**Day 4 note — re-evaluate, don't assume this stays true:** the finding above is
+scoped to TODAY's `cost_per_contact_attempt` (a WhatsApp/SMS message, ₹0.115–0.145).
+It is dead within every reachable parameter as of Day 2/3 — not a permanent property
+of the guardrail. The moment Day 4 wires a per-decision model inference cost into
+`cost_per_contact_attempt` (a $ per LLM call, orders of magnitude above a WhatsApp
+message), re-run
+`test_break_even_floor_cannot_bind_within_the_attempt_budgets_reachable_window` with
+the new cost and expect it to start failing — that's the guardrail waking up, not a
+regression.
 
 ### amount_ceiling_paise
 Value: 500000 paise (₹5,000), configurable
