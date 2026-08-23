@@ -275,18 +275,32 @@ Source: NOT empirical — a policy knob. Round number well above the ticket size
 **Named finding — the ceiling's real price, measured, Day 3:** those ~6.4% of cases
   by *count* are **35.6–36.8% of the corpus's total ₹ value** (measured directly:
   n=1201 → 35.6%, n=5000 → 36.7%, n=20000 → 36.8%, stabilizing around 37%) — a
-  log-normal tail concentrates value far more than count. Consequence, verified
-  against a real ablation run (n=1201, seed=42): `rules_only`'s recovered cases
-  average **₹1,147**, against a population mean of **₹1,639** — a gap of **4.5
-  standard errors** (SE ≈ ₹109 at n=562 recovered cases), not sampling noise. The
-  ceiling structurally bars `rules_only` from the value-dense tail, deferring it to
-  `NEEDS_REVIEW` (human sign-off) instead of automating it. **This is a deliberate
-  risk posture with a measurable price, not a flaw**: automating the highest-value
-  ~37% of addressable value without a human in the loop is exactly the trade CLAUDE.md's
-  amount-ceiling guardrail exists to prevent. Stated as a named finding for the
-  write-up — "the ceiling defers 37% of addressable value to human review rather than
-  automating it" is a more honest and more interesting sentence than any single lift
-  number, and belongs beside the lift table, not buried under it.
+  log-normal tail concentrates value far more than count. This count/value split is
+  pure corpus generation, unaffected by the harness bug below.
+
+  Consequence, verified against a real ablation run (n=1201, seed=42): `rules_only`'s
+  recovered cases average **₹1,396.16**, against a population mean of **₹1,639.20** —
+  a gap of **3.34 standard errors** (SE ≈ ₹72.70 at n=634 recovered cases), not
+  sampling noise. **Revised from an earlier draft (₹1,147 avg, n=562 recovered, 4.5
+  SE)** after fixing a real harness bug: the event loop was conflating "action path
+  gave up" with "case fully resolved," which suppressed a still-pending organic
+  recovery for any case whose action path had given up — undercounting `rules_only`'s
+  organic recoveries specifically (see `app/harness/run.py`'s `_CaseState`
+  docstring and the `fix:` commit). The direction of the finding is unchanged and the
+  gap is still not noise, but it is smaller than first reported: some of what looked
+  like "the ceiling bars rules_only from high-value cases" was actually "the bug was
+  suppressing organic recoveries," and fixing the bug closed part of that gap by
+  recovering more of the corpus generally, high-value cases included.
+
+  The ceiling still structurally bars `rules_only` from acting on the value-dense
+  tail, deferring it to `NEEDS_REVIEW` (human sign-off) instead of automating it.
+  **This is a deliberate risk posture with a measurable price, not a flaw**:
+  automating the highest-value ~37% of addressable value without a human in the loop
+  is exactly the trade CLAUDE.md's amount-ceiling guardrail exists to prevent. Stated
+  as a named finding for the write-up — "the ceiling defers 37% of addressable value
+  to human review rather than automating it" is a more honest and more interesting
+  sentence than any single lift number, and belongs beside the lift table, not buried
+  under it.
 
 ### network_attempt_budget_per_card_30d
 Value: 6 attempts / rolling 30 days per card_id (int, count not money — no unit issue)
@@ -371,19 +385,28 @@ params):**
 
 ```
 net_value(arm) = recovered_amount(arm) − attempts(arm) × cost_per_contact_attempt
-net_value(blind_retry)  = ₹14,32,653.11
-net_value(rules_only)   = ₹6,44,405.69
+net_value(blind_retry)  = ₹14,31,764.12
+net_value(rules_only)   = ₹8,84,079.79
 violation_count(blind_retry) = 14,955   (rules_only: 0, by construction)
 
 penalty_break_even = (net_value(blind_retry) − net_value(rules_only)) / violation_count(blind_retry)
-                    = ₹52.71 per violation
+                    = ₹36.62 per violation
 ```
+
+**Revised from an earlier draft (₹52.71/violation)** after fixing a real event-loop
+bug in `app/harness/run.py` that was undercounting `rules_only`'s organic recoveries
+(see the ceiling finding above and the `fix:` commit for the mechanism). `rules_only`'s
+`recovered_amount` and `net_value` both rose once the bug was fixed, which narrows the
+net-value gap against `blind_retry` and lowers the break-even penalty — the qualitative
+conclusion below (break-even sits between the two networks' published penalties) still
+holds, but the specific ₹ figure moved and every downstream comparison in this section
+uses the corrected one.
 
 **Compared against the published network penalties already in this register, using a
 directly fetched, cited exchange rate (not assumed): 1 USD = ₹95.70 (Xe.com,
 mid-market rate, 09:25 UTC, 23 Aug 2026, https://www.xe.com/en-us/currencyconverter/) —**
 
-| Network | Published direct per-excess-attempt penalty | In ₹ | vs ₹52.71 break-even |
+| Network | Published direct per-excess-attempt penalty | In ₹ | vs ₹36.62 break-even |
 |---|---|---|---|
 | Visa | $0.10 (domestic) | ₹9.57 | **below** — compliance does not pay for itself on this alone |
 | Mastercard | $1.00–$2.00 | ₹95.70–₹191.40 | **above** — compliance pays for itself |
