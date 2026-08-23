@@ -140,6 +140,14 @@ class SweepResult:
     rules_beats_control: bool
     rate_lift_blind_vs_rules: float
     blind_beats_rules: bool
+    # Absolute (non-differenced) recovery rate per arm -- what item 6 of the Day 3
+    # correction round needs: proof that a parameter can shift every arm's LEVEL
+    # together (the recoverable pool getting bigger or smaller) while barely moving
+    # the DIFFERENCE any pairwise lift reports. Cheap: already computed inside
+    # run_ablation's results, just not previously surfaced.
+    rate_control: float
+    rate_rules_only: float
+    rate_blind_retry: float
     # None when this draw's blind_retry made zero violations at this parameter point --
     # break_even_penalty_paise has nothing to solve for then (see compliance.py). Rare,
     # but a real possible outcome at some corner of the swept space, not an error to
@@ -164,6 +172,11 @@ def _run_point(n: int, seed: int, corpus_kw: dict, ablation_kw: dict, policy_ov:
         break_even = compliance.break_even_penalty_paise(results["rules_only"], results["blind_retry"], cost)
     except ValueError:
         break_even = None  # blind_retry made zero violations at this parameter point
+
+    def _rate(arm: str) -> float:
+        rows = results[arm]
+        return sum(r.recovered for r in rows) / len(rows) if rows else 0.0
+
     return SweepResult(
         seed=seed,
         param_hash="",  # filled in by caller, which knows the params dict
@@ -171,6 +184,9 @@ def _run_point(n: int, seed: int, corpus_kw: dict, ablation_kw: dict, policy_ov:
         rules_beats_control=lift_rules_control.rate_lift > 0,
         rate_lift_blind_vs_rules=lift_blind_rules.rate_lift,
         blind_beats_rules=lift_blind_rules.rate_lift > 0,
+        rate_control=_rate("control"),
+        rate_rules_only=_rate("rules_only"),
+        rate_blind_retry=_rate("blind_retry"),
         break_even_penalty_paise=break_even,
     )
 
@@ -195,6 +211,9 @@ def oat_sweep(n: int = 500, base_seed: int = 42) -> list[dict]:
                 "rules_beats_control": result.rules_beats_control,
                 "rate_lift_blind_vs_rules": result.rate_lift_blind_vs_rules,
                 "blind_beats_rules": result.blind_beats_rules,
+                "rate_control": result.rate_control,
+                "rate_rules_only": result.rate_rules_only,
+                "rate_blind_retry": result.rate_blind_retry,
                 "break_even_penalty_paise": result.break_even_penalty_paise,
             })
     return rows
@@ -224,6 +243,9 @@ def joint_random_sweep(n_draws: int = 500, n_cases: int = 300, base_seed: int = 
             "rules_beats_control": result.rules_beats_control,
             "rate_lift_blind_vs_rules": result.rate_lift_blind_vs_rules,
             "blind_beats_rules": result.blind_beats_rules,
+            "rate_control": result.rate_control,
+            "rate_rules_only": result.rate_rules_only,
+            "rate_blind_retry": result.rate_blind_retry,
             "break_even_penalty_paise": result.break_even_penalty_paise,
         })
     return rows
