@@ -46,11 +46,69 @@ this file as the worked example.
 
 ## HEADLINE RISK — read this section first
 
-**Three parameters, not one, now jointly determine the ablation's result, and none of
+**Five parameters, not one, now jointly determine the ablation's result, and none of
 them has a public source.** Promoting `policy_prior_recovery_rate_bps` and
 `sim_true_recovery_rate_bps` here after the fabrication above raised the stakes on
-this section considerably — it was one unsourced parameter, now it's three, all
-multiplying together.
+this section considerably — it was one unsourced parameter, now it's three. Day 3
+raised it again: `organic_recovery_rate_bps` and `p_case_recoverable_bps` join them,
+all multiplying together.
+
+### organic_recovery_rate_bps — read this one first of all
+Value: `{hard: 0, soft: range[200,7000] bps, technical: range[200,7000] bps}`,
+  default 2500 bps for both non-hard classes (float generative parameter for the
+  *sampling shape*; the bps values themselves are integer, per the unit conventions)
+Source: **NO PUBLIC SOURCE FOUND.** No evidence found to differentiate a soft-decline's
+  organic self-resolution rate from a technical-decline's, so both share one range
+  rather than inventing an ordering. `hard: 0` — by this taxonomy's own definition
+  (a hard decline is never retried because the underlying condition doesn't resolve on
+  its own either), not an empirical claim needing a source.
+Used by: `app/simulator/outcomes.py` (Day 3) — the probability a *recoverable* case
+  self-resolves within the horizon with **no action taken at all** (the customer
+  retries the payment themselves, entirely outside Recoup).
+**Why this is the single most consequential parameter in the whole file:** it sets the
+  baseline every arm's lift is measured against. If it were fixed at 0 (no
+  organic-recovery parameter existed before Day 3), the control arm would recover
+  nothing by construction and every other arm's "lift" would collapse into its gross
+  recovery rate — the exact circularity a control arm exists to prevent, one layer
+  down from where the original review caught it. Its declared range is deliberately
+  wider than every other HEADLINE RISK parameter — this is the number with the least
+  evidence behind it and the most riding on it, so the range says so.
+**Sanity anchor, checked (not just declared) at the Day 3 ablation checkpoint:** at
+  the defaults above and `p_case_recoverable_bps`'s defaults below, control's absolute
+  recovery rate should come out roughly 20% (≈ p_recoverable × organic_rate: 0.80×0.25
+  for soft, 0.90×0.25 for technical). If the real simulation disagrees with this by a
+  wide margin, that's flagged as a bug to find, not a number to shrug at.
+
+### p_case_recoverable_bps and the redefined sim_true_recovery_rate_bps
+Value: `p_case_recoverable_bps = {hard: 0, soft: range[6000,9500] bps default 8000,
+  technical: range[7000,9800] bps default 9000}` — drawn **once per case**, seeded off
+  `(master_seed, case_id)`.
+  `sim_true_recovery_rate_bps = {hard: 0, soft: 5500, technical: 5500}` — same numbers
+  as the Day 2 draft, **redefined**: no longer a flat per-attempt rate applied to every
+  case, now the per-attempt success probability *conditional on* the case's
+  `p_case_recoverable` roll having already succeeded.
+Source: **NO PUBLIC SOURCE FOUND** for either. `technical`'s `p_case_recoverable`
+  range set above `soft`'s ceiling — CLAUDE.md's own definition of 'technical' is "no
+  real issuer decision was reached," so a technical failure never eventually
+  resolving requires the customer to abandon the purchase entirely, plausibly rarer
+  than a soft case where the underlying money problem may genuinely never clear. That
+  ordering is reasoned, not sourced, and both ranges are swept independently on Day 3.
+Used by: `app/simulator/outcomes.py`. Unrecoverable cases (the `p_case_recoverable`
+  roll fails) never resolve — not organically, not by any action, by any arm, ever.
+  This is the structural fix for the flat-rate model's real flaw: enough independent
+  per-attempt draws at a fixed rate drives cumulative recovery probability toward 1,
+  which would make "blind retry burned N attempts on cases that were never going to
+  recover" invisible in the data. The two-level split makes that a countable number
+  instead.
+**Flagged explicitly, checked in the Day 3 OAT sweep, not left implicit:**
+  `p_case_recoverable['technical']` (9000) > `p_case_recoverable['soft']` (8000) while
+  `sim_true_recovery_rate_bps` is currently *equal* across both (5500/5500) — so
+  'technical' dominates 'soft' on every axis at default parameters. Combined with
+  `hard_share_of_nonsoft` controlling how much of the corpus is 'technical' vs.
+  never-retried 'hard', the headline ranking may be driven almost entirely by that one
+  parameter. If varying `hard_share_of_nonsoft` moves the ranking more than any other
+  swept parameter, that finding is the single most important sentence in the Day 3
+  write-up — stated as such, not filed as a row in a results table.
 
 ### hard_share_of_nonsoft
 Value: range [0.20, 0.80], default 0.50 (float — generative parameter)
@@ -247,7 +305,7 @@ the demo. They are not what generates the headline lift number.
 
 ---
 
-## Time model (data laid today, harness built Day 3)
+## Time model (data laid Day 2, harness built Day 3)
 
 `Batch.simulated_start_at` anchors a batch's simulated "day 0". Each case gets
 `PaymentCase.simulated_at = simulated_start_at + Uniform(0, arrival_window_days)`,
@@ -255,3 +313,32 @@ seeded. The gate's `now` parameter is always simulated-clock time, never wall-cl
 stated explicitly so Day 3's harness (which advances a virtual clock and schedules
 retries forward in simulated time, not real time) doesn't get built against the wrong
 assumption. `attempt_count_in_window` is computed against this simulated clock.
+
+---
+
+## Harness timing (Day 3)
+
+### retry_delay_hours
+Value: 24, default (int; a scheduling parameter, not money)
+Source: NO PUBLIC SOURCE FOUND. Day 3 uses a flat delay between a rejected/failed
+  attempt and the next proposed one — not the balance-availability prior CLAUDE.md's
+  decline taxonomy calls for ("timed against a balance-availability prior rather than
+  a flat delay"). That's a deliberate scope cut, stated here rather than silently
+  simplified: sophisticated payday-aware timing is future work, not forgotten.
+Used by: `app/harness/` — scheduling the next `ACTION_DUE` event after a failed
+  attempt, for the arms that keep retrying.
+
+### max_case_lifetime_days
+Value: 45, default, range [20, 90] for sweeping
+Source: NOT empirical — an engineering/product policy knob: how long a case's own
+  retry campaign runs before giving up, regardless of whether its rolling 30-day
+  network-attempt-budget window would technically allow more attempts later. Without
+  this, a case could in principle retry indefinitely, and the simulation would never
+  terminate a genuinely stubborn case.
+Used by: `app/harness/` — determines the simulation horizon
+  (`horizon_days = arrival_window_days + max_case_lifetime_days + 10`, a formula, not
+  a constant, so it stays valid if either input is swept) and each case's own give-up
+  point. Chosen so **every case reaches a terminal outcome before the horizon, for
+  every arm identically** — zero censoring by construction, verified by
+  `test_no_case_is_censored_at_the_default_horizon` (and at the swept extremes of this
+  and `arrival_window_days`), rather than handling censoring correctly after the fact.
