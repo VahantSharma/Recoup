@@ -4,14 +4,16 @@ docs/assumptions.md real rather than a naming convention someone can quietly vio
 under time pressure — the exact failure the HEADLINE RISK correction in
 docs/assumptions.md exists to prevent.
 
-One deliberate exemption, added Day 3: app/harness/run.py, the ablation harness's own
-orchestrator. Its entire job is to run policies against the simulator and observe what
-happens -- it MUST import app.simulator to do that. The boundary that matters is
-narrower than "nothing outside app/simulator/": it's "nothing that authors a Policy's
-propose() logic." app/harness/policies.py stays checked, on purpose -- a Policy
-implementation importing app.simulator directly (e.g. "propose no_action if ground
-truth says unrecoverable") would be exactly the cheating this test exists to catch,
-and is a real, plausible mistake now that harness/ legitimately touches both sides.
+Two deliberate exemptions, added Day 3: app/harness/run.py (the ablation harness's own
+orchestrator — its entire job is to run policies against the simulator and observe
+what happens, so it MUST import app.simulator to do that) and app/harness/sweep.py
+(the sensitivity sweep — it monkey-patches app.simulator.params's constants for each
+sweep point, which needs the same import). The boundary that matters is narrower than
+"nothing outside app/simulator/": it's "nothing that authors a Policy's propose()
+logic." app/harness/policies.py stays checked, on purpose -- a Policy implementation
+importing app.simulator directly (e.g. "propose no_action if ground truth says
+unrecoverable") would be exactly the cheating this test exists to catch, and is a
+real, plausible mistake now that harness/ legitimately touches both sides.
 tests/test_policy_input_boundary.py is the complementary, stronger check specifically
 on what's reachable from Policy.propose()'s signature."""
 from __future__ import annotations
@@ -24,7 +26,10 @@ APP_DIR = Path(__file__).resolve().parent.parent / "app"
 # Orchestration code that legitimately bridges policy and simulator -- see module
 # docstring. Keep this list short and named explicitly; anything not listed here stays
 # checked by default, which is the safe failure mode for a new file under app/.
-_HARNESS_ORCHESTRATION_EXEMPT = {APP_DIR / "harness" / "run.py"}
+_HARNESS_ORCHESTRATION_EXEMPT = {
+    APP_DIR / "harness" / "run.py",
+    APP_DIR / "harness" / "sweep.py",
+}
 
 
 def _policy_side_python_files():
@@ -67,10 +72,11 @@ def test_simulator_package_and_params_exist():
 
 
 def test_the_exemption_is_narrow_policies_py_stays_checked():
-    """Regression guard on the exemption itself: run.py is exempt, but
+    """Regression guard on the exemption itself: run.py and sweep.py are exempt, but
     app/harness/policies.py -- where Policy implementations actually live -- must
     still be in the checked set. If this ever fails, the exemption above was widened
     too far."""
     checked = set(_policy_side_python_files())
     assert (APP_DIR / "harness" / "policies.py") in checked
     assert (APP_DIR / "harness" / "run.py") not in checked
+    assert (APP_DIR / "harness" / "sweep.py") not in checked
