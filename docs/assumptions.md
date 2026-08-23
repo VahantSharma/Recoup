@@ -250,13 +250,27 @@ Value: 500000 paise (₹5,000), configurable
 Source: NOT empirical — a policy knob. Round number well above the ticket sizes seen
   in Day 1's real ₹100 corpus.
 **Demonstrability is itself parameter-dependent, not a fixed guarantee:** at
-  `ticket_size_lognormal_sigma`'s default (1.2), an estimated ~6% of generated cases
-  clear ₹5,000. At the bottom of the swept sigma range (0.5), essentially none do —
-  ~0.01% at n=200 rounds to zero cases. So this guardrail, like break-even, is proven
-  correct with a **direct crafted unit test** (a case constructed above the ceiling),
-  not solely by counting corpus draws — the corpus-level check only confirms the
-  distribution *can* produce ceiling-crossing cases at the default sweep point, it
-  isn't the guardrail's proof of correctness.
+  `ticket_size_lognormal_sigma`'s default (1.2), ~6.3–6.5% of generated cases clear
+  ₹5,000 (measured directly at n=1201/5000/20000, not estimated). At the bottom of the
+  swept sigma range (0.5), essentially none do. So this guardrail, like break-even, is
+  proven correct with a **direct crafted unit test** (a case constructed above the
+  ceiling), not solely by counting corpus draws.
+
+**Named finding — the ceiling's real price, measured, Day 3:** those ~6.4% of cases
+  by *count* are **35.6–36.8% of the corpus's total ₹ value** (measured directly:
+  n=1201 → 35.6%, n=5000 → 36.7%, n=20000 → 36.8%, stabilizing around 37%) — a
+  log-normal tail concentrates value far more than count. Consequence, verified
+  against a real ablation run (n=1201, seed=42): `rules_only`'s recovered cases
+  average **₹1,147**, against a population mean of **₹1,639** — a gap of **4.5
+  standard errors** (SE ≈ ₹109 at n=562 recovered cases), not sampling noise. The
+  ceiling structurally bars `rules_only` from the value-dense tail, deferring it to
+  `NEEDS_REVIEW` (human sign-off) instead of automating it. **This is a deliberate
+  risk posture with a measurable price, not a flaw**: automating the highest-value
+  ~37% of addressable value without a human in the loop is exactly the trade CLAUDE.md's
+  amount-ceiling guardrail exists to prevent. Stated as a named finding for the
+  write-up — "the ceiling defers 37% of addressable value to human review rather than
+  automating it" is a more honest and more interesting sentence than any single lift
+  number, and belongs beside the lift table, not buried under it.
 
 ### network_attempt_budget_per_card_30d
 Value: 6 attempts / rolling 30 days per card_id (int, count not money — no unit issue)

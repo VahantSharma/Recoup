@@ -88,3 +88,22 @@ def test_harvested_row_passes_through_untouched():
 def test_output_length_is_n_plus_one_real_harvested_failure():
     drafts = build_corpus(n=50, seed=42, batch_simulated_start_at=_start())
     assert len(drafts) == 51
+
+
+def test_ceiling_concentrates_value_far_more_than_count():
+    """The named finding in docs/assumptions.md, proven directly: at default sigma,
+    ~6.4% of cases by count clear the ceiling but represent well over a third of
+    total corpus value -- a log-normal tail concentrates value far more than count.
+    This is what makes the amount-ceiling guardrail's cost measurable, not just its
+    existence."""
+    drafts = build_corpus(n=5000, seed=42, batch_simulated_start_at=_start())
+    amounts = [d.amount for d in drafts]
+    total_value = sum(amounts)
+    above = [a for a in amounts if a > AMOUNT_CEILING_PAISE]
+
+    count_share = len(above) / len(amounts)
+    value_share = sum(above) / total_value
+
+    assert 0.04 < count_share < 0.09, f"count share {count_share:.3%} outside expected band"
+    assert 0.25 < value_share < 0.50, f"value share {value_share:.3%} outside expected band"
+    assert value_share > count_share * 4, "value concentration should be far steeper than count share"
