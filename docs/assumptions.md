@@ -214,6 +214,23 @@ Used by: `corpus_builder.build_corpus()` — `risk_flagged = info.risk_flagged O
   independent_draw`. Never applied to the one real harvested row (see the module
   docstring: that row's fields are a specific observed fact, not resampled).
 
+### unknown_reason_rate_bps
+Value: range [0, 300] bps (0–3%), default 50 bps (0.5%)
+Source: **NO PUBLIC SOURCE FOUND.** Added after a full guardrail-reachability audit
+  (see `docs/results.md`) found `unclassifiable_decline_human_review` — like
+  `risk_hard_stop` before its own fix — was unit-tested but structurally unreachable:
+  the corpus only ever resampled reason strings already in `REASON_TAXONOMY`, so
+  `decline_class == "unknown"` could never occur. Production genuinely encounters
+  reason strings the taxonomy has never seen (a new acquirer, a code Razorpay adds
+  next quarter) — that is precisely why this guardrail exists. No published rate
+  exists for how often a real integration meets an unrecognized reason string; the
+  range is a deliberately small, swept placeholder, not a claim about real incidence.
+Used by: `corpus_builder.build_corpus()` — injects a synthetic reason string absent
+  from `REASON_TAXONOMY` at this independent rate, reusing `taxonomy.classify()`
+  unchanged (the same helper the harvested row already calls) so it correctly falls
+  through to the `UNKNOWN`/`'unknown'` branch. Never applied to the one real
+  harvested row.
+
 `card_reuse_factor` itself now lives in the HEADLINE RISK section above, promoted
 after the Day 3 checkpoint run showed it was quietly determining `rules_only`'s
 recovery performance via card-budget saturation, not just enabling a guardrail test —
