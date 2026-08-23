@@ -25,13 +25,16 @@ this file as the worked example.
 | `cost_per_contact_attempt` | ✅ confirmed, as a range | Two direct fetches, two different exact figures (BSP pricing genuinely varies) |
 | `policy_prior_recovery_rate_bps` | ❌ was fabricated | Direct fetch found no such figure anywhere on the cited page — corrected below |
 | `sim_true_recovery_rate_bps` | ❌ was fabricated (same source) | Same as above |
+| `cost_per_contact_attempt_milli_paise` | ❌ was a 100x unit-conversion error | Hand-typed `115` for ₹0.115 — by this file's own convention (1 paise = 1000 milli-paise) that's 11,500, not 115. Second unit-class error caught in the file that exists to prevent them (the first was the fabricated recovery-rate citation above). Fixed by defining the constant via `app/money.py`'s conversion helpers instead of a hand-typed integer — see the corrected row below |
 | everything else below | — no citation claimed | Already labeled NO PUBLIC SOURCE FOUND / policy knob — nothing to falsify |
 
 ## Unit conventions (read before adding a parameter)
 
 - Payment amounts: integer **paise** (unchanged from Day 1's `payment_cases.amount`).
 - Costs smaller than 1 paise: integer **milli-paise** (1 paise = 1000 milli-paise).
-  ₹0.115 = 11.5 paise = 115 milli-paise — stored as `115`, never `0.115`.
+  ₹0.115 = 11.5 paise = **11,500** milli-paise — stored as `11500`, never `0.115` or
+  (the bug this line once had) `115`. Constants are now defined via `app/money.py`'s
+  conversion helpers, not hand-typed integers — see the citation-verification log.
 - Any rate/probability that gets multiplied against money in a comparison (recovery
   rate priors, in the break-even test): integer **basis points** (bps), 0–10000.
   55% = `5500`, never `0.55`. This makes the break-even calculation pure integer
@@ -206,39 +209,41 @@ Used by: gate.py's break-even-floor guardrail — uses `effective_rate_bps` for 
   *next* attempt, not `base_rate_bps` unconditionally.
 
 ### cost_per_contact_attempt_milli_paise
-Value: range [115, 145] milli-paise (₹0.115–₹0.145), both endpoints directly verified
+Value: range [11500, 14500] milli-paise (₹0.115–₹0.145), both endpoints directly
+  verified. **Corrected — the range was previously written as [115, 145], a 100x
+  unit-conversion error** (see the citation-verification log): ₹0.115 is 11,500
+  milli-paise, not 115. Defined via `app/money.py`'s `rupees_to_milli_paise()` now,
+  not a hand-typed integer, so the same class of error can't silently recur.
 Source: WhatsApp Business API utility-message pricing, India, 2026 — ₹0.115/message
   (MyOperator, directly fetched and quoted) and ₹0.145/message (AiSensy, directly
   fetched and quoted) — two different BSP resellers, genuinely different prices for
   the same category, not a discrepancy to average away.
 Used by: break-even-floor guardrail, cost side.
-**Finding, verified exactly (not estimated) once the gate existed to check it
-against:** break-even cannot bind *anywhere within the network-attempt-budget's
-reachable window* at this real cost — not just "not on attempt 1." The budget
-guardrail caps `attempt_count_in_window` at 5 before break-even is ever evaluated
-(attempt 6 is rejected by budget one guardrail earlier), and
-`test_break_even_floor_cannot_bind_within_the_attempt_budgets_reachable_window`
-exhaustively checks every reachable attempt number (1 through 6) against a ₹1
-payment — the smallest realistic amount — and confirms expected value never goes
-negative in that entire range. Automated recovery messaging (₹0.115–0.145) is simply
-too cheap, relative to any real payment, for this guardrail to ever fire in practice
-under the current parameters — which is itself a legitimate economics finding for the
-pitch (the real constraint on whether to act is compliance/risk, not unit economics,
-at any ticket size this project has produced), not a reason to inflate the cost figure
-to force a trigger. The formula itself *can* go negative — proven separately with an
-extreme crafted input (attempt 40, ₹1) via `expected_value_milli_paise()` called
-directly, bypassing the budget cap on purpose — so the guardrail's logic is correct;
-it just never gets to bind given today's other guardrail's ceiling on attempt number.
+**Finding — REVISED after the unit fix, and the reversal is itself the finding:**
+  under the wrong (100x too small) cost, break-even never bound anywhere in the
+  network-attempt-budget's reachable window. Under the corrected cost it does —
+  `test_break_even_floor_now_binds_at_the_last_reachable_attempt_for_a_tiny_payment`
+  exhaustively checks every reachable attempt number (1 through 6, the budget's own
+  cap) against a ₹1 payment: attempts 1–5 still clear break-even, but **attempt 6 —
+  the last reachable one — now goes negative**. So the guardrail does have real bite
+  within today's parameters after all, precisely at the point a case has already
+  absorbed 5 failed contact attempts on a ₹1 payment. At more realistic ticket sizes
+  (the corpus's ₹800 median) it still essentially never binds — the crossover is a
+  function of amount, and a 100x cost correction moves the crossover amount by 100x
+  too (roughly ₹0.2–0.3 → roughly ₹20–30 at the latest reachable attempt), which is
+  still small next to the corpus's real ticket-size distribution. The formula's
+  broader capacity to bind is separately proven with an extreme crafted input
+  (attempt 40, ₹1) via `expected_value_milli_paise()` called directly, bypassing the
+  budget cap on purpose.
 
-**Day 4 note — re-evaluate, don't assume this stays true:** the finding above is
-scoped to TODAY's `cost_per_contact_attempt` (a WhatsApp/SMS message, ₹0.115–0.145).
-It is dead within every reachable parameter as of Day 2/3 — not a permanent property
-of the guardrail. The moment Day 4 wires a per-decision model inference cost into
+**Day 4 note — re-evaluate again, don't assume this stays true either:** the finding
+above is still scoped to TODAY's `cost_per_contact_attempt` (a WhatsApp/SMS message,
+₹0.115–0.145). The moment Day 4 wires a per-decision model inference cost into
 `cost_per_contact_attempt` (a $ per LLM call, orders of magnitude above a WhatsApp
 message), re-run
-`test_break_even_floor_cannot_bind_within_the_attempt_budgets_reachable_window` with
-the new cost and expect it to start failing — that's the guardrail waking up, not a
-regression.
+`test_break_even_floor_now_binds_at_the_last_reachable_attempt_for_a_tiny_payment`
+with the new cost and expect the guardrail to start binding at earlier attempts and
+larger amounts too — that's it working as intended, not a regression.
 
 ### amount_ceiling_paise
 Value: 500000 paise (₹5,000), configurable
