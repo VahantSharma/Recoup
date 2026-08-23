@@ -126,6 +126,64 @@ def test_rules_only_saturates_most_of_the_shared_card_budget():
     assert saturation > 0.85, f"expected high budget saturation, got {saturation:.1%}"
 
 
+def test_recovered_set_is_a_superset_of_controls_for_every_arm_that_acts():
+    """Regression test for a real bug: an earlier version of the event loop used one
+    `resolved` flag for both "recovered" and "action path gave up," so a case whose
+    action path gave up (gate rejection or lifetime exceeded) had its still-pending
+    ORGANIC event silently discarded -- rules_only (and blind_retry) would then
+    under-count organic recoveries relative to control for exactly the cases they
+    tried and failed to act on. This is the mechanical invariant that catches it: since
+    ground truth (including the organic-resolution draw) is shared across arms by
+    design (see test_ground_truth_is_shared_across_arms_the_paired_design), an arm that
+    acts can only ever ADD recoveries on top of what would have happened organically
+    anyway -- it can never cause a case control recovered to end up not-recovered.
+    Found via an OAT sweep result that shouldn't have been possible: rules_only's lift
+    over control going negative at high organic_recovery_rate_bps."""
+    results = _run(n=1500)
+    control_by_id = {r.case_id: r for r in results["control"]}
+    for arm in ("rules_only", "blind_retry"):
+        for r in results[arm]:
+            if control_by_id[r.case_id].recovered:
+                assert r.recovered, (
+                    f"case {r.case_id} recovered under control (organically) but not "
+                    f"under {arm} -- an acting arm must never lose an organic recovery"
+                )
+
+
+def test_giving_up_on_the_action_path_does_not_suppress_a_later_organic_recovery():
+    """Direct unit-level check on the fixed mechanism, not just the aggregate
+    invariant above: a case whose action path gives up (gate-rejected or lifetime-
+    exceeded) must still be able to resolve via a later-scheduled ORGANIC event, and
+    must end up reported as recovered/outcome=='recovered' when it does."""
+    from datetime import timedelta
+
+    from app.harness.run import _CaseState
+    from app.harness.policies import ObservableCase
+
+    case = ObservableCase(
+        id="pay_test", amount=10_000, currency="INR", decline_class="soft",
+        decline_class_source="error_code", risk_flagged=False, card_id="card_test",
+        simulated_at=_start(),
+    )
+    state = _CaseState(case=case, ground_truth=None)  # ground_truth unused by resolve/give_up
+
+    state.give_up("gave_up_gate_rejected", _start() + timedelta(days=5), route_to="NOT_WORKED")
+    assert state.recovered is False
+    assert state.action_path_exhausted is True
+    assert state.final_status == "gave_up_gate_rejected"
+
+    # The event loop's top-of-loop guard checks `state.recovered`, not this flag --
+    # so a pending ORGANIC event for this case would still be processed and reach
+    # resolve() below, which is what the guard change in run_arm actually relies on.
+    state.resolve("organic", _start() + timedelta(days=10))
+    assert state.recovered is True
+    assert state.final_status == "recovered"
+    assert state.outcome == "recovered"
+    # route_to is left as the historical fact about why the action path stopped --
+    # outcome/recovered (checked first) are what determine the case's real result.
+    assert state.route_to == "NOT_WORKED"
+
+
 def test_every_case_appears_exactly_once_per_arm():
     corpus = _small_corpus(n=150)
     results = run_ablation(corpus, [ControlPolicy(), RulesOnlyPolicy()], master_seed=42)

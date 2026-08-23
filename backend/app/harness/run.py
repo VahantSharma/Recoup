@@ -44,32 +44,44 @@ class _CaseState:
     case: ObservableCase
     ground_truth: CaseGroundTruth
     history: list[AttemptHistoryEntry] = field(default_factory=list)
-    resolved: bool = False
     recovered: bool = False
     recovered_via: str | None = None
     resolved_at: datetime | None = None
     violation_count: int = 0
+    # True once the ACTION path is exhausted (gate rejected, or lifetime exceeded)
+    # -- deliberately does NOT mean "fully resolved." A case whose action path gave up
+    # can still organically resolve later if its (independently scheduled) ORGANIC
+    # event falls after the give-up point. Conflating the two was a real bug: an
+    # earlier version used one `resolved` flag for both, which made the event loop's
+    # `if state.resolved: continue` guard silently discard a still-pending, still-
+    # legitimate ORGANIC event for any case whose action path had given up --
+    # penalizing rules_only (which actually gives up on cases) for organic recoveries
+    # control (which never gives up, because it never acts) still correctly counted.
+    # Found via an OAT sweep result that shouldn't have been possible (rules_only's
+    # lift over control going negative at high organic_recovery_rate_bps, when
+    # rules_only's recovered set should be a strict superset of control's), not
+    # assumed correct because the code looked reasonable.
+    action_path_exhausted: bool = False
     final_status: str = "not_recovered"
     route_to: str | None = None
     pending_gate_decision: str | None = None
     pending_gate_reason: str | None = None
 
     def resolve(self, via: str, when: datetime) -> None:
-        if self.resolved:
+        if self.recovered:
             return  # whichever event happens first wins; a later event for an
-                     # already-resolved case is a no-op, not an error
-        self.resolved = True
+                     # already-recovered case is a no-op, not an error
         self.recovered = True
         self.recovered_via = via
         self.resolved_at = when
         self.final_status = "recovered"
 
     def give_up(self, reason: str, when: datetime, route_to: str | None = None) -> None:
-        if self.resolved:
+        if self.recovered or self.action_path_exhausted:
             return
-        self.resolved = True
-        self.recovered = False
-        self.resolved_at = when
+        self.action_path_exhausted = True
+        self.resolved_at = when  # tentative -- overwritten if this case still
+                                   # organically resolves after this point
         self.final_status = reason
         self.route_to = route_to
 
@@ -133,8 +145,10 @@ def run_arm(
     while len(queue):
         event = queue.pop()
         state = states[event.payload]
-        if state.resolved:
-            continue
+        if state.recovered:
+            continue  # only a recovery is truly terminal for the event loop -- a case
+                       # whose action path gave up (action_path_exhausted) can still
+                       # have a legitimate pending ORGANIC event fire after this point
 
         if event.kind == "ORGANIC":
             state.resolve("organic", event.when)
