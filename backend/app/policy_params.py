@@ -39,3 +39,17 @@ def effective_recovery_rate_bps(decline_class: str, attempt_number: int) -> int:
     if attempt_number <= 1:
         return base
     return round(base * (ATTEMPT_DECAY_FACTOR ** (attempt_number - 1)))
+
+
+def expected_value_milli_paise(decline_class: str, attempt_number: int, amount_paise: int) -> int:
+    """Pure break-even math, independently testable from gate.evaluate()'s full
+    guardrail chain — deliberately, because the network-attempt-budget guardrail caps
+    attempt_number at NETWORK_ATTEMPT_BUDGET_PER_CARD_30D before break-even is ever
+    reached in practice, which makes "does break-even ever actually bind" a real
+    question about the *interaction* between two guardrails, not just this formula in
+    isolation. See tests/test_gate.py for both: the formula going negative for an
+    extreme crafted input, and the (more precise, more surprising) finding that within
+    the attempt-budget's reachable window it does not, at real messaging costs, for
+    any payment above a couple of paise."""
+    rate_bps = effective_recovery_rate_bps(decline_class, attempt_number)
+    return (amount_paise * 1000 * rate_bps) // 10_000 - COST_PER_CONTACT_ATTEMPT_MILLI_PAISE

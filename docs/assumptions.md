@@ -154,20 +154,26 @@ Source: WhatsApp Business API utility-message pricing, India, 2026 — ₹0.115/
   fetched and quoted) — two different BSP resellers, genuinely different prices for
   the same category, not a discrepancy to average away.
 Used by: break-even-floor guardrail, cost side.
-**Finding, not a bug to hide:** at this real sourced cost, on attempt 1
-  (`amount_paise < cost_milli_paise * 10000 / (1000 * rate_bps)`), the breakeven
-  threshold works out to roughly **0.2–0.3 paise** for a soft-decline case — the
-  guardrail structurally cannot bind on a first attempt at any realistic ticket size;
-  automated recovery messaging is just that cheap relative to a real payment. With
-  `attempt_decay_factor` now in the model, the threshold rises on later attempts as
-  the effective recovery rate decays. The precise version of the finding, stated the
-  way it should go in the pitch: break-even can't fire on attempt 1 at realistic
-  ticket sizes, starts to matter on later attempts, and becomes a real constraint once
-  Day 4 adds a per-decision model inference cost to `cost_per_contact_attempt` — a $
-  per LLM call is a very different number from ₹0.13 per WhatsApp message. Not a
-  reason to inflate today's cost figure to force a guardrail trigger; the guardrail is
-  proven correct with a direct unit test constructing a crafted low-amount,
-  late-attempt case, not by hoping the corpus's natural distribution produces one.
+**Finding, verified exactly (not estimated) once the gate existed to check it
+against:** break-even cannot bind *anywhere within the network-attempt-budget's
+reachable window* at this real cost — not just "not on attempt 1." The budget
+guardrail caps `attempt_count_in_window` at 5 before break-even is ever evaluated
+(attempt 6 is rejected by budget one guardrail earlier), and
+`test_break_even_floor_cannot_bind_within_the_attempt_budgets_reachable_window`
+exhaustively checks every reachable attempt number (1 through 6) against a ₹1
+payment — the smallest realistic amount — and confirms expected value never goes
+negative in that entire range. Automated recovery messaging (₹0.115–0.145) is simply
+too cheap, relative to any real payment, for this guardrail to ever fire in practice
+under the current parameters — which is itself a legitimate economics finding for the
+pitch (the real constraint on whether to act is compliance/risk, not unit economics,
+at any ticket size this project has produced), not a reason to inflate the cost figure
+to force a trigger. The formula itself *can* go negative — proven separately with an
+extreme crafted input (attempt 40, ₹1) via `expected_value_milli_paise()` called
+directly, bypassing the budget cap on purpose — so the guardrail's logic is correct;
+it just never gets to bind given today's other guardrail's ceiling on attempt number.
+Becomes a real constraint once Day 4 adds a per-decision model inference cost to
+`cost_per_contact_attempt` — a $ per LLM call is a very different number from ₹0.13
+per WhatsApp message.
 
 ### amount_ceiling_paise
 Value: 500000 paise (₹5,000), configurable
