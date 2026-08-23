@@ -26,6 +26,7 @@ this file as the worked example.
 | `policy_prior_recovery_rate_bps` | ❌ was fabricated | Direct fetch found no such figure anywhere on the cited page — corrected below |
 | `sim_true_recovery_rate_bps` | ❌ was fabricated (same source) | Same as above |
 | `cost_per_contact_attempt_milli_paise` | ❌ was a 100x unit-conversion error | Hand-typed `115` for ₹0.115 — by this file's own convention (1 paise = 1000 milli-paise) that's 11,500, not 115. Second unit-class error caught in the file that exists to prevent them (the first was the fabricated recovery-rate citation above). Fixed by defining the constant via `app/money.py`'s conversion helpers instead of a hand-typed integer — see the corrected row below |
+| `usd_to_inr` (compliance economics) | ✅ confirmed, dated | Direct fetch of Xe.com's converter, twice in the same session (23 Aug 2026): 1 USD = 95.69845588 INR, "Mid-market rate at 09:25 UTC" both times. An FX rate in a money calculation gets the same citation discipline as everything else — third time this file's own verification log has had to check a money-adjacent number rather than trust the first draft (100x unit error, fabricated recovery-rate citation, and this) |
 | everything else below | — no citation claimed | Already labeled NO PUBLIC SOURCE FOUND / policy knob — nothing to falsify |
 
 ## Unit conventions (read before adding a parameter)
@@ -104,17 +105,14 @@ Used by: `app/simulator/outcomes.py`. Unrecoverable cases (the `p_case_recoverab
   which would make "blind retry burned N attempts on cases that were never going to
   recover" invisible in the data. The two-level split makes that a countable number
   instead.
-**Flagged explicitly, checked in the Day 3 OAT sweep — result below, not left
-  implicit:** `p_case_recoverable['technical']` (9000) > `p_case_recoverable['soft']`
-  (8000) while `sim_true_recovery_rate_bps` is currently *equal* across both
-  (5500/5500) — so 'technical' dominates 'soft' on every axis at default parameters.
-  This raised the hypothesis that `hard_share_of_nonsoft` (which controls how much of
-  the corpus is 'technical' vs. never-retried 'hard') would dominate the OAT ranking.
-  **Measured, and the hypothesis was wrong:** `hard_share_of_nonsoft`'s OAT lift range
-  is [+0.327, +0.341] — a spread of 0.014, the *smallest* of any swept parameter, not
-  the largest. See the "Sensitivity sweep results" section below for what actually
-  dominates (`organic_recovery_rate_bps`, by a wide margin) and for why the ordering
-  makes sense once you work through the mechanism. Stated here because reporting a
+**Flagged explicitly, checked in the Day 3 OAT sweep, not left implicit:**
+  `p_case_recoverable['technical']` (9000) > `p_case_recoverable['soft']` (8000) while
+  `sim_true_recovery_rate_bps` is currently *equal* across both (5500/5500) — so
+  'technical' dominates 'soft' on every axis at default parameters. This raised the
+  hypothesis that `hard_share_of_nonsoft` (which controls how much of the corpus is
+  'technical' vs. never-retried 'hard') would dominate the OAT ranking. **Measured,
+  and the hypothesis was wrong — see `docs/results.md`'s sensitivity-sweep section for
+  the actual dominant parameter and the mechanism.** Stated here because reporting a
   flagged hypothesis as confirmed when the data says otherwise would be exactly the
   overclaiming this file exists to prevent.
 
@@ -127,18 +125,15 @@ Source: NO PUBLIC SOURCE FOUND. Originally added on Day 2 as plumbing — withou
   enough same-card attempts to hit the cap). It has since turned out to do far more
   than that.
 Used by: corpus_builder.build_corpus() — replaces one-card-per-case.
-**Why this is HEADLINE RISK, not corpus plumbing: measured directly against the
-  checkpoint run (n=1201, seed=42, default params) — `rules_only` used 1,699 of the
-  ~1,800 attempts theoretically available across its card pool (300 cards ×
-  `network_attempt_budget_per_card_30d`=6) — 94.4% budget saturation.** Its recovery
-  performance is therefore **budget-determined, not policy-determined**: cases are
-  competing for a shared per-card attempt budget, so a case's odds of getting enough
-  tries to succeed depend on how many *other* cases happen to share its card, not on
-  anything the policy itself decides. That dependency runs through a parameter that
-  has never been sourced and was introduced to make a different guardrail testable —
-  worth stating plainly rather than discovering it in a sweep table with no
-  explanation attached. Swept prominently in the Day 3 OAT sweep as a result, not
-  folded in as one row among many.
+**Why this is HEADLINE RISK, not corpus plumbing:** `rules_only`'s recovery
+  performance is **budget-determined, not policy-determined** at any card_reuse_factor
+  well above 1 — cases compete for a shared per-card attempt budget, so a case's odds
+  of getting enough tries to succeed depend on how many *other* cases happen to share
+  its card, not on anything the policy itself decides. That dependency runs through a
+  parameter that has never been sourced and was introduced to make a different
+  guardrail testable — worth stating plainly rather than discovering it in a sweep
+  table with no explanation attached. See `docs/results.md` for the measured
+  budget-saturation figure from the Day 3 checkpoint and its OAT sweep spread.
 
 ### hard_share_of_nonsoft
 Value: range [0.20, 0.80], default 0.50 (float — generative parameter)
@@ -167,13 +162,9 @@ Used by: `policy_prior_recovery_rate_bps` — the gate's break-even-floor guardr
   controls how much of the corpus is 'technical' (recovery prior floats freely above
   'soft', now within the same unsourced range) vs. never-retried 'hard'. All three
   parameters multiply together and were flagged as the headline ablation ranking's
-  most likely failure point going into Day 3's sweep. **Measured result: only
-  `sim_true_recovery_rate_bps` and `p_case_recoverable_bps_soft` turned out to move the
-  ranking materially (lift spreads 0.136 and 0.212); `hard_share_of_nonsoft` itself had
-  the smallest OAT spread of any swept parameter (0.014).** The actual dominant
-  parameter is `organic_recovery_rate_bps` (spread 0.319) — see "Sensitivity sweep
-  results" below. Named here as a flagged hypothesis that didn't hold up, not silently
-  dropped.
+  most likely failure point going into Day 3's sweep. **Measured result in
+  `docs/results.md`: that hypothesis didn't hold up** — named here as a flagged guess
+  that turned out wrong, not silently dropped once the data came in.
 
 ---
 
@@ -298,35 +289,16 @@ Source: NOT empirical — a policy knob. Round number well above the ticket size
   proven correct with a **direct crafted unit test** (a case constructed above the
   ceiling), not solely by counting corpus draws.
 
-**Named finding — the ceiling's real price, measured, Day 3:** those ~6.4% of cases
-  by *count* are **35.6–36.8% of the corpus's total ₹ value** (measured directly:
-  n=1201 → 35.6%, n=5000 → 36.7%, n=20000 → 36.8%, stabilizing around 37%) — a
-  log-normal tail concentrates value far more than count. This count/value split is
-  pure corpus generation, unaffected by the harness bug below.
-
-  Consequence, verified against a real ablation run (n=1201, seed=42): `rules_only`'s
-  recovered cases average **₹1,396.16**, against a population mean of **₹1,639.20** —
-  a gap of **3.34 standard errors** (SE ≈ ₹72.70 at n=634 recovered cases), not
-  sampling noise. **Revised from an earlier draft (₹1,147 avg, n=562 recovered, 4.5
-  SE)** after fixing a real harness bug: the event loop was conflating "action path
-  gave up" with "case fully resolved," which suppressed a still-pending organic
-  recovery for any case whose action path had given up — undercounting `rules_only`'s
-  organic recoveries specifically (see `app/harness/run.py`'s `_CaseState`
-  docstring and the `fix:` commit). The direction of the finding is unchanged and the
-  gap is still not noise, but it is smaller than first reported: some of what looked
-  like "the ceiling bars rules_only from high-value cases" was actually "the bug was
-  suppressing organic recoveries," and fixing the bug closed part of that gap by
-  recovering more of the corpus generally, high-value cases included.
-
-  The ceiling still structurally bars `rules_only` from acting on the value-dense
-  tail, deferring it to `NEEDS_REVIEW` (human sign-off) instead of automating it.
-  **This is a deliberate risk posture with a measurable price, not a flaw**:
-  automating the highest-value ~37% of addressable value without a human in the loop
-  is exactly the trade CLAUDE.md's amount-ceiling guardrail exists to prevent. Stated
-  as a named finding for the write-up — "the ceiling defers 37% of addressable value
-  to human review rather than automating it" is a more honest and more interesting
-  sentence than any single lift number, and belongs beside the lift table, not buried
-  under it.
+**Named finding — the ceiling's real price:** the ceiling structurally bars
+  `rules_only` from acting on the value-dense tail of the corpus, deferring those
+  cases to `NEEDS_REVIEW` (human sign-off) instead of automating them. **This is a
+  deliberate risk posture with a measurable price, not a flaw** — automating a
+  disproportionate share of addressable value without a human in the loop is exactly
+  the trade CLAUDE.md's amount-ceiling guardrail exists to prevent. See
+  `docs/results.md` for the measured count/value share, the deferred-bucket
+  reconciliation against the corpus, and the recovered-case value gap — all sourced
+  from the Day 3 checkpoint run, not repeated here to avoid two documents citing the
+  same figure independently.
 
 ### network_attempt_budget_per_card_30d
 Value: 6 attempts / rolling 30 days per card_id (int, count not money — no unit issue)
@@ -403,63 +375,6 @@ Source: NO PUBLIC SOURCE FOUND. Day 3 uses a flat delay between a rejected/faile
 Used by: `app/harness/` — scheduling the next `ACTION_DUE` event after a failed
   attempt, for the arms that keep retrying.
 
-## Compliance economics (Day 3)
-
-**Break-even penalty rate, solved on net value (corrected — see the citation log's
-100x cost fix), measured against the checkpoint run (n=1201, seed=42, default
-params):**
-
-```
-net_value(arm) = recovered_amount(arm) − attempts(arm) × cost_per_contact_attempt
-net_value(blind_retry)  = ₹14,31,764.12
-net_value(rules_only)   = ₹8,84,079.79
-violation_count(blind_retry) = 14,955   (rules_only: 0, by construction)
-
-penalty_break_even = (net_value(blind_retry) − net_value(rules_only)) / violation_count(blind_retry)
-                    = ₹36.62 per violation
-```
-
-**Revised from an earlier draft (₹52.71/violation)** after fixing a real event-loop
-bug in `app/harness/run.py` that was undercounting `rules_only`'s organic recoveries
-(see the ceiling finding above and the `fix:` commit for the mechanism). `rules_only`'s
-`recovered_amount` and `net_value` both rose once the bug was fixed, which narrows the
-net-value gap against `blind_retry` and lowers the break-even penalty — the qualitative
-conclusion below (break-even sits between the two networks' published penalties) still
-holds, but the specific ₹ figure moved and every downstream comparison in this section
-uses the corrected one.
-
-**Compared against the published network penalties already in this register, using a
-directly fetched, cited exchange rate (not assumed): 1 USD = ₹95.70 (Xe.com,
-mid-market rate, 09:25 UTC, 23 Aug 2026, https://www.xe.com/en-us/currencyconverter/) —**
-
-| Network | Published direct per-excess-attempt penalty | In ₹ | vs ₹36.62 break-even |
-|---|---|---|---|
-| Visa | $0.10 (domestic) | ₹9.57 | **below** — compliance does not pay for itself on this alone |
-| Mastercard | $1.00–$2.00 | ₹95.70–₹191.40 | **above** — compliance pays for itself |
-
-**The honest reading: break-even sits *between* the two networks' published direct
-penalties, not cleanly below or above both.** Compliance is economically justified by
-the direct per-transaction penalty alone under Mastercard's schedule, and is not
-under Visa's — stated plainly, not rounded away in either direction. A clean "rules
-always wins on cost" claim would be false; so would "compliance doesn't pay."
-
-**What the direct per-transaction penalty doesn't price in — named, not left
-implicit:** Visa's own **Merchant Monitoring Program** — verified by direct fetch,
-same source as the attempt-cap figures above (a secondary blog, not Visa's own
-primary publication, so directional not authoritative, same caveat as
-`network_attempt_budget_per_card_30d`) — flags merchants exceeding a 15% decline rate
-or 1,000+ monthly declined transactions with fines of **$5,000–$75,000/month** until
-compliant — a program-level escalation that a single-transaction penalty figure
-doesn't capture at all. Also unpriced here: account review/suspension risk, and
-customer churn from being retried up to ~45 times on a single failed payment (blind
-retry's own behavior this session — see the Day 3 checkpoint). **The defensible claim
-is that direct per-transaction penalties alone don't justify compliance under every
-network's published schedule; tail risk (program-level fines, account review, churn)
-does the rest of the work** — a more precise and more credible claim than either "it
-clearly pays" or "it clearly doesn't."
-
----
-
 ### max_case_lifetime_days
 Value: 45, default, range [20, 90] for sweeping
 Source: NOT empirical — an engineering/product policy knob: how long a case's own
@@ -477,64 +392,26 @@ Used by: `app/harness/` — determines the simulation horizon
 
 ---
 
-## Sensitivity sweep results (Day 3)
+## Compliance economics (Day 3)
 
-Run: `python -m scripts.run_day3_sweep`, base_seed=42. Covers all 13 parameters with a
-declared `[lo, hi]` sweep range above — `arrival_window_days` and `retry_delay_hours`
-are deliberately excluded (see `app/harness/sweep.py`'s module docstring: no declared
-sweep range for either, and inventing one now would be exactly the unrecorded
-assumption this file exists to prevent).
+The break-even penalty rate (solved on net value, never gross recovered amount — see
+`app/harness/compliance.py`'s module docstring for why gross was the wrong formula),
+the checkpoint's single-point figure, its full distribution across the joint
+sensitivity sweep, and the comparison against Visa's and Mastercard's published
+per-excess-attempt penalties all live in **`docs/results.md`** now, not here — this
+section previously duplicated results content the register shouldn't own. What
+belongs in the register instead: the USD/INR exchange rate used to convert those
+published $ penalties is logged in the citation verification log at the top of this
+file, dated and sourced, on the same footing as every other money-adjacent citation.
+Visa's Merchant Monitoring Program penalty figures ($5,000–$75,000/month) are sourced
+the same way as `network_attempt_budget_per_card_30d`'s Mastercard figure — a
+secondary blog, not Visa's own primary publication, so directional not authoritative.
 
-**Run after fixing the event-loop bug described in the ceiling and compliance
-sections above — the first run, before the fix, produced a result that was
-mechanically impossible** (`rules_only`'s lift over `control` going negative at high
-`organic_recovery_rate_bps`, when `rules_only`'s recovered set is, by construction, a
-strict superset of `control`'s — an acting arm can only ever add recoveries on top of
-what would have happened organically anyway). That impossible result is what led to
-finding the bug in the first place, rather than the sweep being trusted as-is.
+---
 
-### OAT sweep (5 points/parameter, n=500 cases/point)
+## Sensitivity sweep results
 
-`rules_only` beat `control` at **every one of the 65 points** (13 parameters × 5
-points) — zero flips anywhere in any parameter's declared range. Ranked by lift
-*spread* (widest range across the parameter's 5 points — the measure of how much each
-parameter moves the result, now that no parameter flips the ranking outright):
-
-| Parameter | Lift spread | Lift range |
-|---|---|---|
-| `organic_recovery_rate_bps` | **0.319** | [+0.130, +0.449] |
-| `card_reuse_factor` | 0.216 | [+0.253, +0.459] |
-| `p_case_recoverable_bps_soft` | 0.212 | [+0.222, +0.433] |
-| `sim_true_recovery_rate_bps` | 0.136 | [+0.230, +0.365] |
-| `max_case_lifetime_days` | 0.054 | [+0.355, +0.359] |
-| (all others) | ≤0.046 | — |
-| `hard_share_of_nonsoft` | **0.014** (smallest of all 13) | [+0.327, +0.341] |
-
-**`organic_recovery_rate_bps` dominates, not `hard_share_of_nonsoft` as flagged going
-into this sweep — and the mechanism is worth stating plainly, not just the ranking:**
-`organic_recovery_rate_bps` sets `control`'s baseline directly. As it rises, more of
-the corpus resolves on its own regardless of arm, which shrinks the *pool* of cases
-still unresolved for `rules_only`'s actions to work on — so the absolute lift
-(`rules_only`'s rate minus `control`'s) shrinks even though `rules_only` still wins
-everywhere. This is exactly the parameter the original plan flagged as having "the
-least evidence behind it of anything in the file" (NO PUBLIC SOURCE FOUND, deliberately
-widened range) — and it turns out to be the single most consequential number in the
-project for how *large* the reported lift looks, even though it never threatens
-*whether* `rules_only` beats `control`.
-
-`card_reuse_factor` and `p_case_recoverable_bps_soft` are the next-most consequential,
-consistent with `card_reuse_factor`'s HEADLINE RISK promotion above. `hard_share_of_nonsoft`
-— hypothesized as the likely dominant parameter when this file was written pre-sweep —
-turned out to have the least effect on the ranking of any of the 13 swept parameters.
-That hypothesis is recorded as wrong, not quietly removed.
-
-### Joint random sweep (500 draws, n=300 cases/draw)
-
-`rules_only` beat `control` in **500/500** random draws from the full declared
-parameter space (every one of the 13 parameters varied simultaneously and
-independently per draw). This is the expected result given the OAT sweep's zero
-flips and the mechanical invariant above — not an independent confirmation of
-something the OAT sweep left in doubt, but the same conclusion checked jointly rather
-than one parameter at a time, which is where a ranking that survives every OAT
-parameter individually could in principle still fail (interaction effects the OAT
-sweep can't see by design). It didn't.
+Moved to **`docs/results.md`** — a sweep produces results, not parameters, and this
+register's job is the input side (what's sourced, what's flagged, what range each
+parameter is swept across), not the output side. `docs/results.md` cites this file's
+`[lo, hi]` ranges as its input and reports what happened when they were swept.
