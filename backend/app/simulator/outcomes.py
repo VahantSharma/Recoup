@@ -8,7 +8,12 @@ import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from .params import ORGANIC_RECOVERY_RATE_BPS, P_CASE_RECOVERABLE_BPS, SIM_TRUE_RECOVERY_RATE_BPS
+from . import params
+
+# Module-qualified access (`params.X`), not `from .params import X` -- the latter
+# copies a name binding at import time, so a sweep that monkey-patches
+# `params.ORGANIC_RECOVERY_RATE_BPS` for one run would silently be a no-op here. This
+# mirrors the pattern app.gate already uses correctly for app.policy_params.
 
 
 @dataclass(frozen=True)
@@ -35,11 +40,11 @@ def draw_ground_truth(
     """
     rng = random.Random(f"{master_seed}:{case_id}")
 
-    recoverable_bps = P_CASE_RECOVERABLE_BPS.get(decline_class, 0)
+    recoverable_bps = params.P_CASE_RECOVERABLE_BPS.get(decline_class, 0)
     if not (rng.random() < recoverable_bps / 10_000):
         return CaseGroundTruth(is_recoverable=False, organic_resolves_at=None)
 
-    organic_bps = ORGANIC_RECOVERY_RATE_BPS.get(decline_class, 0)
+    organic_bps = params.ORGANIC_RECOVERY_RATE_BPS.get(decline_class, 0)
     if rng.random() < organic_bps / 10_000:
         offset_days = rng.uniform(0, max_case_lifetime_days)
         return CaseGroundTruth(
@@ -65,6 +70,6 @@ def attempt_succeeds(
     """
     if not ground_truth.is_recoverable:
         return False
-    rate_bps = SIM_TRUE_RECOVERY_RATE_BPS.get(decline_class, 0)
+    rate_bps = params.SIM_TRUE_RECOVERY_RATE_BPS.get(decline_class, 0)
     rng = random.Random(f"{master_seed}:{case_id}:{arm}:{attempt_number}")
     return rng.random() < rate_bps / 10_000

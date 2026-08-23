@@ -83,6 +83,29 @@ def test_attempt_success_can_differ_by_arm_for_the_same_case_and_attempt_number(
     assert len({tuple(v) for v in results_by_arm.values()}) > 1
 
 
+def test_module_level_params_can_be_monkeypatched_for_a_sweep():
+    """Regression guard for the sweep infrastructure: outcomes.py must read
+    params.X at call time (module-qualified), not bind a name at import time --
+    otherwise patching params.ORGANIC_RECOVERY_RATE_BPS for one sweep point would
+    silently be a no-op here, and the whole sweep would quietly run every point
+    against the unswept default."""
+    import app.simulator.params as sim_params
+
+    original = sim_params.ORGANIC_RECOVERY_RATE_BPS
+    try:
+        sim_params.ORGANIC_RECOVERY_RATE_BPS = {"hard": 0, "soft": 10_000, "technical": 10_000}
+        # organic_recovery_rate_bps=10000 (100%) means every recoverable case must
+        # organically resolve -- a directly observable behavior change.
+        recoverable_but_not_organic = 0
+        for i in range(300):
+            gt = draw_ground_truth(f"patched_{i}", "soft", 99, _start(), 45)
+            if gt.is_recoverable and gt.organic_resolves_at is None:
+                recoverable_but_not_organic += 1
+        assert recoverable_but_not_organic == 0
+    finally:
+        sim_params.ORGANIC_RECOVERY_RATE_BPS = original
+
+
 def test_attempt_succeeds_is_deterministic():
     gt = draw_ground_truth("case_det", "soft", 42, _start(), 45)
     a = attempt_succeeds("case_det", "rules_only", 1, "soft", 42, gt)
