@@ -80,6 +80,7 @@ def build_corpus(
     arrival_window_days: int = 30,  # docs/assumptions.md: arrival_window_days
     card_reuse_factor: float = 4.0,  # docs/assumptions.md: card_reuse_factor
     risk_flag_rate_bps: int = 150,  # docs/assumptions.md: risk_flag_rate_bps
+    unknown_reason_rate_bps: int = 50,  # docs/assumptions.md: unknown_reason_rate_bps
 ) -> list[CaseDraft]:
     rng = random.Random(seed)
 
@@ -95,6 +96,20 @@ def build_corpus(
 
         reason = rng.choice(_reasons_for_class(decline_class))
         info = REASON_TAXONOMY[reason]
+
+        # Unknown-reason injection -- same pattern as risk_flag_rate_bps below:
+        # production genuinely encounters reason strings the taxonomy has never seen
+        # (a new acquirer, a code Razorpay adds next quarter), which is exactly why
+        # gate.py's unclassifiable_decline_human_review guardrail exists. Without
+        # this draw the corpus could never generate decline_class == 'unknown', so
+        # that guardrail -- like risk_hard_stop before its own fix -- would be
+        # unit-tested but never exercised by any generated corpus. classify() is
+        # reused unchanged (same helper the harvested row uses below): any reason
+        # string not a key in REASON_TAXONOMY correctly falls through to its
+        # UNKNOWN/'unknown' branch.
+        if rng.random() < unknown_reason_rate_bps / 10_000:
+            reason = f"unrecognized_reason_{_rand_hex(rng, nbytes=4)}"
+            info = classify(reason, reason)
 
         # Risk-flagging as a signal independent of decline reason -- real fraud/risk
         # scoring (Razorpay Risk or an acquirer's own engine) can flag a payment

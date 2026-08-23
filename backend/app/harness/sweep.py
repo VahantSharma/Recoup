@@ -40,6 +40,7 @@ PARAM_SPECS: dict[str, dict] = {
     "ticket_size_lognormal_sigma": dict(bucket="corpus", key="ticket_size_sigma", lo=0.5, hi=1.8, default=1.2),
     "card_reuse_factor": dict(bucket="corpus", key="card_reuse_factor", lo=1.5, hi=8.0, default=4.0),
     "risk_flag_rate_bps": dict(bucket="corpus", key="risk_flag_rate_bps", lo=0, hi=500, default=150),
+    "unknown_reason_rate_bps": dict(bucket="corpus", key="unknown_reason_rate_bps", lo=0, hi=300, default=50),
     "max_case_lifetime_days": dict(bucket="ablation", key="max_case_lifetime_days", lo=20, hi=90, default=45),
     "cost_per_contact_attempt_milli_paise": dict(
         bucket="policy_scalar", key="COST_PER_CONTACT_ATTEMPT_MILLI_PAISE", lo=11_500, hi=14_500, default=11_500,

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from app.corpus_builder import build_corpus
 from app.policy_params import AMOUNT_CEILING_PAISE
-from app.taxonomy import HARD, SOFT, TECHNICAL
+from app.taxonomy import HARD, REASON_TAXONOMY, SOFT, TECHNICAL, UNKNOWN
 
 REAL_HARVESTED_PAYMENT_ID = "pay_TSv8WoMc4OAEGG"
 REAL_HARVESTED_CARD_ID = "card_TSv8X7hxUJBdNs"
@@ -121,6 +121,39 @@ def test_harvested_row_risk_flag_is_never_touched_by_the_independent_draw():
     drafts = build_corpus(n=10, seed=42, batch_simulated_start_at=_start(), risk_flag_rate_bps=10_000)
     harvested = [d for d in drafts if d.decline_class_source == "harvested"][0]
     assert harvested.risk_flagged is False  # payment_failed -> SOFT, risk_flagged=False in the taxonomy
+
+
+def test_unknown_reason_is_injected_at_default_rate():
+    """Without this draw, decline_class == 'unknown' can never occur in a generated
+    corpus, which would leave gate.py's unclassifiable_decline_human_review guardrail
+    unit-tested but never exercised by any real run -- the same class of gap
+    risk_flag_rate_bps closed for risk_hard_stop."""
+    drafts = build_corpus(n=3000, seed=42, batch_simulated_start_at=_start())
+    unknown = [d for d in drafts if d.decline_class == UNKNOWN]
+    assert len(unknown) > 0, "unclassifiable_decline_human_review needs an unknown-class case to ever fire"
+    for d in unknown:
+        assert d.error_reason not in REASON_TAXONOMY
+
+
+def test_unknown_reason_rate_is_swept_correctly():
+    n = 3000
+    off = build_corpus(n=n, seed=42, batch_simulated_start_at=_start(), unknown_reason_rate_bps=0)
+    assert sum(1 for d in off if d.decline_class == UNKNOWN) == 0
+
+    high = build_corpus(n=n, seed=42, batch_simulated_start_at=_start(), unknown_reason_rate_bps=1000)
+    high_share = sum(1 for d in high if d.decline_class == UNKNOWN) / n
+    assert 0.05 < high_share < 0.15, f"10% unknown_reason_rate_bps should hit roughly a tenth of cases, got {high_share:.1%}"
+
+
+def test_harvested_row_reason_is_never_touched_by_the_unknown_draw():
+    """The one real harvested case is a specific observed fact -- see the module
+    docstring. Its error_reason ('payment_failed', a real known taxonomy entry) must
+    never be overwritten by the synthetic-row unknown-injection draw, at any
+    unknown_reason_rate_bps."""
+    drafts = build_corpus(n=10, seed=42, batch_simulated_start_at=_start(), unknown_reason_rate_bps=10_000)
+    harvested = [d for d in drafts if d.decline_class_source == "harvested"][0]
+    assert harvested.error_reason == "payment_failed"
+    assert harvested.decline_class != UNKNOWN
 
 
 def test_ceiling_concentrates_value_far_more_than_count():

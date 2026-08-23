@@ -217,6 +217,20 @@ def test_risk_hard_stop_actually_fires_in_a_real_run():
     assert counts.get("risk_hard_stop", 0) > 0
 
 
+def test_unclassifiable_decline_human_review_actually_fires_in_a_real_run():
+    """Same reachability pattern as risk_hard_stop above, for the same reason:
+    without unknown_reason_rate_bps injecting cases the taxonomy has never seen, the
+    corpus could never generate decline_class == 'unknown', so this guardrail was
+    unit-tested but never exercised by any generated corpus."""
+    from app.harness.run import run_arm_with_guardrail_counts
+
+    corpus = _small_corpus(n=3000)
+    _, counts = run_arm_with_guardrail_counts(
+        corpus, RulesOnlyPolicy(), master_seed=42, retry_delay_hours=24, max_case_lifetime_days=45,
+    )
+    assert counts.get("unclassifiable_decline_human_review", 0) > 0
+
+
 def test_every_case_appears_exactly_once_per_arm():
     corpus = _small_corpus(n=150)
     results = run_ablation(corpus, [ControlPolicy(), RulesOnlyPolicy()], master_seed=42)
