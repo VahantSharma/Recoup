@@ -104,15 +104,19 @@ Used by: `app/simulator/outcomes.py`. Unrecoverable cases (the `p_case_recoverab
   which would make "blind retry burned N attempts on cases that were never going to
   recover" invisible in the data. The two-level split makes that a countable number
   instead.
-**Flagged explicitly, checked in the Day 3 OAT sweep, not left implicit:**
-  `p_case_recoverable['technical']` (9000) > `p_case_recoverable['soft']` (8000) while
-  `sim_true_recovery_rate_bps` is currently *equal* across both (5500/5500) — so
-  'technical' dominates 'soft' on every axis at default parameters. Combined with
-  `hard_share_of_nonsoft` controlling how much of the corpus is 'technical' vs.
-  never-retried 'hard', the headline ranking may be driven almost entirely by that one
-  parameter. If varying `hard_share_of_nonsoft` moves the ranking more than any other
-  swept parameter, that finding is the single most important sentence in the Day 3
-  write-up — stated as such, not filed as a row in a results table.
+**Flagged explicitly, checked in the Day 3 OAT sweep — result below, not left
+  implicit:** `p_case_recoverable['technical']` (9000) > `p_case_recoverable['soft']`
+  (8000) while `sim_true_recovery_rate_bps` is currently *equal* across both
+  (5500/5500) — so 'technical' dominates 'soft' on every axis at default parameters.
+  This raised the hypothesis that `hard_share_of_nonsoft` (which controls how much of
+  the corpus is 'technical' vs. never-retried 'hard') would dominate the OAT ranking.
+  **Measured, and the hypothesis was wrong:** `hard_share_of_nonsoft`'s OAT lift range
+  is [+0.327, +0.341] — a spread of 0.014, the *smallest* of any swept parameter, not
+  the largest. See the "Sensitivity sweep results" section below for what actually
+  dominates (`organic_recovery_rate_bps`, by a wide margin) and for why the ordering
+  makes sense once you work through the mechanism. Stated here because reporting a
+  flagged hypothesis as confirmed when the data says otherwise would be exactly the
+  overclaiming this file exists to prevent.
 
 ### card_reuse_factor — promoted here after the Day 3 checkpoint run
 Value: range [1.5, 8.0], default 4.0 — expected number of cases sharing each
@@ -162,10 +166,14 @@ Used by: `policy_prior_recovery_rate_bps` — the gate's break-even-floor guardr
 **Why this section exists, not just three ordinary rows:** `hard_share_of_nonsoft`
   controls how much of the corpus is 'technical' (recovery prior floats freely above
   'soft', now within the same unsourced range) vs. never-retried 'hard'. All three
-  parameters multiply together and plausibly dominate the headline ablation ranking
-  more than anything else in this file. Day 3's sensitivity write-up must name this
-  trio explicitly as the ranking's most likely failure point — not bury it in a table
-  alongside `arrival_window_days`.
+  parameters multiply together and were flagged as the headline ablation ranking's
+  most likely failure point going into Day 3's sweep. **Measured result: only
+  `sim_true_recovery_rate_bps` and `p_case_recoverable_bps_soft` turned out to move the
+  ranking materially (lift spreads 0.136 and 0.212); `hard_share_of_nonsoft` itself had
+  the smallest OAT spread of any swept parameter (0.014).** The actual dominant
+  parameter is `organic_recovery_rate_bps` (spread 0.319) — see "Sensitivity sweep
+  results" below. Named here as a flagged hypothesis that didn't hold up, not silently
+  dropped.
 
 ---
 
@@ -448,3 +456,67 @@ Used by: `app/harness/` — determines the simulation horizon
   every arm identically** — zero censoring by construction, verified by
   `test_no_case_is_censored_at_the_default_horizon` (and at the swept extremes of this
   and `arrival_window_days`), rather than handling censoring correctly after the fact.
+
+---
+
+## Sensitivity sweep results (Day 3)
+
+Run: `python -m scripts.run_day3_sweep`, base_seed=42. Covers all 13 parameters with a
+declared `[lo, hi]` sweep range above — `arrival_window_days` and `retry_delay_hours`
+are deliberately excluded (see `app/harness/sweep.py`'s module docstring: no declared
+sweep range for either, and inventing one now would be exactly the unrecorded
+assumption this file exists to prevent).
+
+**Run after fixing the event-loop bug described in the ceiling and compliance
+sections above — the first run, before the fix, produced a result that was
+mechanically impossible** (`rules_only`'s lift over `control` going negative at high
+`organic_recovery_rate_bps`, when `rules_only`'s recovered set is, by construction, a
+strict superset of `control`'s — an acting arm can only ever add recoveries on top of
+what would have happened organically anyway). That impossible result is what led to
+finding the bug in the first place, rather than the sweep being trusted as-is.
+
+### OAT sweep (5 points/parameter, n=500 cases/point)
+
+`rules_only` beat `control` at **every one of the 65 points** (13 parameters × 5
+points) — zero flips anywhere in any parameter's declared range. Ranked by lift
+*spread* (widest range across the parameter's 5 points — the measure of how much each
+parameter moves the result, now that no parameter flips the ranking outright):
+
+| Parameter | Lift spread | Lift range |
+|---|---|---|
+| `organic_recovery_rate_bps` | **0.319** | [+0.130, +0.449] |
+| `card_reuse_factor` | 0.216 | [+0.253, +0.459] |
+| `p_case_recoverable_bps_soft` | 0.212 | [+0.222, +0.433] |
+| `sim_true_recovery_rate_bps` | 0.136 | [+0.230, +0.365] |
+| `max_case_lifetime_days` | 0.054 | [+0.355, +0.359] |
+| (all others) | ≤0.046 | — |
+| `hard_share_of_nonsoft` | **0.014** (smallest of all 13) | [+0.327, +0.341] |
+
+**`organic_recovery_rate_bps` dominates, not `hard_share_of_nonsoft` as flagged going
+into this sweep — and the mechanism is worth stating plainly, not just the ranking:**
+`organic_recovery_rate_bps` sets `control`'s baseline directly. As it rises, more of
+the corpus resolves on its own regardless of arm, which shrinks the *pool* of cases
+still unresolved for `rules_only`'s actions to work on — so the absolute lift
+(`rules_only`'s rate minus `control`'s) shrinks even though `rules_only` still wins
+everywhere. This is exactly the parameter the original plan flagged as having "the
+least evidence behind it of anything in the file" (NO PUBLIC SOURCE FOUND, deliberately
+widened range) — and it turns out to be the single most consequential number in the
+project for how *large* the reported lift looks, even though it never threatens
+*whether* `rules_only` beats `control`.
+
+`card_reuse_factor` and `p_case_recoverable_bps_soft` are the next-most consequential,
+consistent with `card_reuse_factor`'s HEADLINE RISK promotion above. `hard_share_of_nonsoft`
+— hypothesized as the likely dominant parameter when this file was written pre-sweep —
+turned out to have the least effect on the ranking of any of the 13 swept parameters.
+That hypothesis is recorded as wrong, not quietly removed.
+
+### Joint random sweep (500 draws, n=300 cases/draw)
+
+`rules_only` beat `control` in **500/500** random draws from the full declared
+parameter space (every one of the 13 parameters varied simultaneously and
+independently per draw). This is the expected result given the OAT sweep's zero
+flips and the mechanical invariant above — not an independent confirmation of
+something the OAT sweep left in doubt, but the same conclusion checked jointly rather
+than one parameter at a time, which is where a ranking that survives every OAT
+parameter individually could in principle still fail (interaction effects the OAT
+sweep can't see by design). It didn't.
