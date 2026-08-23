@@ -122,21 +122,22 @@ def test_break_even_formula_goes_negative_for_an_extreme_crafted_input():
     assert expected_value_milli_paise("soft", attempt_number=40, amount_paise=100) < 0
 
 
-def test_break_even_floor_cannot_bind_within_the_attempt_budgets_reachable_window():
-    """The precise version of the docs/assumptions.md finding, verified rather than
-    estimated: the network-attempt-budget guardrail (6 attempts/30 days) caps
-    attempt_count_in_window at 5 before break-even is ever evaluated (attempt_count
-    == 6 is rejected by budget, one guardrail earlier). Within that entire reachable
-    range (next_attempt 1..6), break-even does not bind for ANY payment of at least
-    ₹1 (100 paise) at real messaging costs -- not just "not on attempt 1". Proven by
-    exhaustively checking every reachable attempt number, not asserted from one
-    example."""
+def test_break_even_floor_now_binds_at_the_last_reachable_attempt_for_a_tiny_payment():
+    """REVISED finding, after the cost-unit-bug fix (₹0.115 is 11,500 milli-paise, not
+    115 -- a 100x error). Under the WRONG cost, break-even never bound anywhere in the
+    reachable window; under the corrected cost it does, exactly at attempt 6 (the last
+    reachable one) for a ₹1 payment -- attempts 1-5 still clear it. Exhaustively
+    checked, not asserted from one example, and the flip itself is the finding: a
+    100x unit error changed the guardrail's real-world behavior, not just a decimal
+    in a doc."""
     from app.policy_params import NETWORK_ATTEMPT_BUDGET_PER_CARD_30D, expected_value_milli_paise
 
-    for attempt_count_in_window in range(NETWORK_ATTEMPT_BUDGET_PER_CARD_30D):  # 0..5, the reachable range
-        next_attempt = attempt_count_in_window + 1
-        ev = expected_value_milli_paise("soft", next_attempt, amount_paise=100)
-        assert ev >= 0, f"break-even fired at attempt {next_attempt} for a ₹1 payment — finding is wrong"
+    evs = [
+        expected_value_milli_paise("soft", n, amount_paise=100)
+        for n in range(1, NETWORK_ATTEMPT_BUDGET_PER_CARD_30D + 1)  # 1..6, the reachable range
+    ]
+    assert all(ev >= 0 for ev in evs[:5]), "attempts 1-5 should still clear break-even for a ₹1 payment"
+    assert evs[5] < 0, "attempt 6 should now be where break-even first binds for a ₹1 payment"
 
 
 def test_break_even_expected_value_math_is_exact_integer():
@@ -145,7 +146,7 @@ def test_break_even_expected_value_math_is_exact_integer():
 
     ev = expected_value_milli_paise("soft", attempt_number=1, amount_paise=10_000)
     assert isinstance(ev, int)
-    assert ev == 5_499_885  # (10000 * 1000 * 5500) // 10000 - 115, pinned so a future
+    assert ev == 5_488_500  # (10000 * 1000 * 5500) // 10000 - 11500, pinned so a future
                              # change to the formula or the sourced constants is visible
 
 

@@ -9,6 +9,8 @@ the exact circularity CLAUDE.md is built to avoid. Enforced structurally by
 """
 from __future__ import annotations
 
+from .money import rupees_to_milli_paise
+
 # --- HEADLINE RISK (docs/assumptions.md) — NO PUBLIC SOURCE FOUND for either ---
 # Same starting default as app.simulator.params.SIM_TRUE_RECOVERY_RATE_BPS today;
 # Day 3 sweeps the two independently, including runs that deliberately diverge by up
@@ -22,7 +24,10 @@ POLICY_PRIOR_RECOVERY_RATE_BPS: dict[str, int] = {
 
 # --- policy priors, docs/assumptions.md "Policy priors" section ---
 ATTEMPT_DECAY_FACTOR = 0.7  # NO PUBLIC SOURCE FOUND — see assumptions.md
-COST_PER_CONTACT_ATTEMPT_MILLI_PAISE = 115  # ₹0.115 — verified, MyOperator (low end of a [115,145] range)
+# ₹0.115 -- verified, MyOperator (low end of a ₹[0.115,0.145] range). Defined via
+# rupees_to_milli_paise(), not hand-typed -- a hand-typed "115" here was a 100x unit
+# bug (11.5 paise is 11,500 milli-paise, not 115), caught in review, not by this code.
+COST_PER_CONTACT_ATTEMPT_MILLI_PAISE = rupees_to_milli_paise(0.115)
 AMOUNT_CEILING_PAISE = 500_000  # ₹5,000 — policy knob, not empirical
 NETWORK_ATTEMPT_BUDGET_PER_CARD_30D = 6  # deliberate headroom below the lowest verified cap (15)
 RECONCILE_FRESHNESS_WINDOW_SECONDS = 300  # 5 minutes — engineering policy knob
