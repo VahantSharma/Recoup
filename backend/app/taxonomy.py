@@ -22,6 +22,7 @@ from dataclasses import dataclass
 HARD = "hard"
 SOFT = "soft"
 TECHNICAL = "technical"
+UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,11 @@ def classify(error_code: str | None, error_reason: str | None) -> ReasonInfo:
     info = REASON_TAXONOMY.get(error_reason)
     if info is not None:
         return info
-    # Unrecognized reason: default to technical (no real issuer decision confirmed) and
-    # mark it clearly as an inferred fallback, never silently presented as known.
-    return ReasonInfo(TECHNICAL, "documented")
+    # Unrecognized reason: NOT technical. A silent TECHNICAL default would permit fast
+    # auto-retry on a signal nobody has actually classified — exactly backwards. The
+    # gate's first guardrail (Day 2) hard-stops any decline_class == UNKNOWN case to
+    # NEEDS_REVIEW, unconditionally. source='unknown', not 'documented' — there is no
+    # documentation for a string that isn't in this table, and claiming 'documented'
+    # here would overclaim in exactly the way this file's own citation-verification
+    # discipline (docs/assumptions.md) exists to prevent.
+    return ReasonInfo(UNKNOWN, "unknown")
