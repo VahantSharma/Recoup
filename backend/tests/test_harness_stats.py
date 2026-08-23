@@ -14,6 +14,7 @@ def _row(case_id, arm, amount, recovered):
         recovered=recovered, recovered_via="action" if recovered else None,
         resolved_at=None, attempt_count=1, violation_count=0,
         final_status="recovered" if recovered else "not_recovered",
+        route_to=None, outcome="recovered" if recovered else "not_recovered",
     )
 
 

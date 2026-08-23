@@ -31,6 +31,12 @@ class CaseArmResult:
     attempt_count: int  # action attempts actually executed
     violation_count: int  # gate rejections this arm acted through anyway (audit_only)
     final_status: str  # "recovered" | "not_recovered" | "gave_up_gate_rejected" | "gave_up_lifetime_exceeded"
+    route_to: str | None  # None | "NEEDS_REVIEW" | "NOT_WORKED" -- copied verbatim
+                           # from the gate's GateResult.route_to at the decision that
+                           # ended this case's action-based path, if any
+    outcome: str  # "recovered" | "deferred_to_human_review" | "not_recovered" -- the
+                   # three-way split correction/instruction 3: NEEDS_REVIEW cases are
+                   # a real, distinct outcome, not silently counted as "not recovered"
 
 
 @dataclass
@@ -44,6 +50,7 @@ class _CaseState:
     resolved_at: datetime | None = None
     violation_count: int = 0
     final_status: str = "not_recovered"
+    route_to: str | None = None
     pending_gate_decision: str | None = None
     pending_gate_reason: str | None = None
 
@@ -57,13 +64,22 @@ class _CaseState:
         self.resolved_at = when
         self.final_status = "recovered"
 
-    def give_up(self, reason: str, when: datetime) -> None:
+    def give_up(self, reason: str, when: datetime, route_to: str | None = None) -> None:
         if self.resolved:
             return
         self.resolved = True
         self.recovered = False
         self.resolved_at = when
         self.final_status = reason
+        self.route_to = route_to
+
+    @property
+    def outcome(self) -> str:
+        if self.recovered:
+            return "recovered"
+        if self.route_to == "NEEDS_REVIEW":
+            return "deferred_to_human_review"
+        return "not_recovered"
 
 
 def _to_observable(draft: CaseDraft) -> ObservableCase:
@@ -176,7 +192,7 @@ def run_arm(
         if result.decision == "rejected" and audit_only:
             state.violation_count += 1
         if not will_execute:
-            state.give_up("gave_up_gate_rejected", now)
+            state.give_up("gave_up_gate_rejected", now, route_to=result.route_to)
             continue
 
         execute_at = now + timedelta(hours=retry_delay_hours)
@@ -191,7 +207,7 @@ def run_arm(
             decline_class=s.case.decline_class, recovered=s.recovered,
             recovered_via=s.recovered_via, resolved_at=s.resolved_at,
             attempt_count=len(s.history), violation_count=s.violation_count,
-            final_status=s.final_status,
+            final_status=s.final_status, route_to=s.route_to, outcome=s.outcome,
         )
         for s in states.values()
     ]

@@ -82,6 +82,31 @@ def test_control_absolute_recovery_rate_is_roughly_the_arithmetic_expectation():
     assert 0.10 < rate < 0.35, f"control recovery rate {rate:.3f} is far from the ~20% expectation"
 
 
+def test_needs_review_cases_are_a_distinct_outcome_not_silently_not_recovered():
+    """Correction 3: a case the gate routes to NEEDS_REVIEW (risk-flagged, or above
+    the amount ceiling) must show up as 'deferred_to_human_review', not be silently
+    folded into 'not_recovered' -- rules_only correctly declining to auto-act on
+    those cases shouldn't be penalised as if it simply failed to recover them."""
+    results = _run(n=1000)
+    deferred = [r for r in results["rules_only"] if r.outcome == "deferred_to_human_review"]
+    assert len(deferred) > 0, "expected some risk-flagged/over-ceiling cases to be deferred"
+    for r in deferred:
+        assert r.recovered is False
+        assert r.route_to == "NEEDS_REVIEW"
+
+
+def test_outcome_is_always_one_of_the_three_named_buckets():
+    results = _run(n=500)
+    for arm, rows in results.items():
+        outcomes = {r.outcome for r in rows}
+        assert outcomes <= {"recovered", "deferred_to_human_review", "not_recovered"}
+
+
+def test_control_never_defers_it_never_calls_the_gate():
+    results = _run(n=500)
+    assert all(r.outcome != "deferred_to_human_review" for r in results["control"])
+
+
 def test_every_case_appears_exactly_once_per_arm():
     corpus = _small_corpus(n=150)
     results = run_ablation(corpus, [ControlPolicy(), RulesOnlyPolicy()], master_seed=42)

@@ -29,16 +29,23 @@ def main() -> None:
 
     print(f"n={len(corpus)} cases, master_seed={SEED}\n")
 
-    print("--- per-arm absolute numbers (not lift -- read these before any lift figure) ---")
+    print("--- per-arm absolute numbers, THREE-way outcome split (not lift -- read these first) ---")
     for arm, rows in results.items():
+        n = len(rows)
         n_recovered = sum(r.recovered for r in rows)
+        n_deferred = sum(r.outcome == "deferred_to_human_review" for r in rows)
+        n_not_recovered = sum(r.outcome == "not_recovered" for r in rows)
         total_attempts = sum(r.attempt_count for r in rows)
         total_violations = sum(r.violation_count for r in rows)
         recovered_amount = sum(r.amount_paise for r in rows if r.recovered)
+        deferred_amount = sum(r.amount_paise for r in rows if r.outcome == "deferred_to_human_review")
         print(
-            f"{arm:>12}: recovery_rate={n_recovered/len(rows):.3%}  "
-            f"total_attempts={total_attempts}  total_violations={total_violations}  "
-            f"recovered_amount={_fmt_paise(recovered_amount)}"
+            f"{arm:>12}: recovered={n_recovered/n:.3%}  deferred_to_human_review={n_deferred/n:.3%}  "
+            f"not_recovered={n_not_recovered/n:.3%}"
+        )
+        print(
+            f"{'':>12}  total_attempts={total_attempts}  total_violations={total_violations}  "
+            f"recovered_amount={_fmt_paise(recovered_amount)}  deferred_amount={_fmt_paise(deferred_amount)}"
         )
 
     print("\n--- paired bootstrap lift (95% CI, 2000 resamples) ---")
