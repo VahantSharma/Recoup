@@ -1,7 +1,16 @@
-# Razorpay AI Buildathon — Plan (v2, after engineering review)
+# Razorpay AI Buildathon — Plan (v3, after Day 1 + Day 2)
 
 Full interactive version, including the ten review findings and the corrected architecture diagram:
 https://claude.ai/code/artifact/da31f555-e263-4047-9958-ea2e9f7e2f25
+
+## Status: Day 2 of 5 complete
+
+A real payment traces end-to-end from a live Razorpay payment id through to a case
+row (Day 1), and a deterministic policy gate with 8 guardrails runs against a
+resampled corpus, every non-harvested parameter sourced or explicitly flagged
+unsourced in [`docs/assumptions.md`](assumptions.md) (Day 2). See that file for the
+full parameter register, including a caught and corrected fabricated citation — kept
+in as a worked example of the discipline, not scrubbed out.
 
 ## Buildathon facts (verified)
 
@@ -26,19 +35,31 @@ Ten findings; four changed the product rather than the pitch:
 9. **Prompt injection (medium).** Untrusted text + money tools. → Guardrails enforced in code outside the model; demo one poisoned narration string being rejected.
 10. **n=50 too small (medium).** → Confidence intervals on everything; classification metrics kept separate from business metrics.
 
+## What Day 1 + Day 2 changed about this plan (v2 → v3)
+
+Findings the review couldn't have anticipated, surfaced by actually driving the real API and then actually building against it:
+
+- **The error corpus was never harvestable reason-by-reason, on either integration surface checked.** Razorpay's test-mode mock bank page (hosted checkout, Payment Links) is a plain Success/Failure toggle that doesn't branch on which documented test-card number is used — confirmed by driving 3 real checkouts. The S2S/custom-checkout surface, where card details would bypass that mock page, is gated behind a Razorpay support request our test account doesn't have — checked, not assumed absent. So finding #1's "taxonomy is theirs, not invented" claim from the original real-vs-simulated framing needed correcting: the reason *strings* are Razorpay's (16 published, in `errors/payments/cards`), but the hard/soft/technical *classification* was always Recoup's own work — Razorpay publishes no `error_source`, `error_step`, or retryable designation alongside any of them. **The corpus is built** (`backend/app/corpus_builder.py`), not harvested, resampling those 16 reason strings into the real envelope shape confirmed live on Day 1, against sourced-or-flagged distributions.
+- **Finding #1's circularity risk moved, it didn't disappear.** A control arm kills the "organic recovery" confound, but Recoup's classification + Recoup's simulator + Recoup's policy still means a single lift number grades its own homework at one remove. Fix: `app/policy_params.py` (what the gate believes) and `app/simulator/params.py` (what actually happens, Day 3) are separate modules that start from the same unsourced default today but are swept independently and made to diverge on Day 3 — structurally enforced by `tests/test_import_boundary.py`, not just named apart. Headline ablation (Day 3) additionally moves from a 4-way split (reintroducing finding #10's n=50 problem) to a **paired counterfactual comparison** — every arm runs over the same full case set from identical seeded conditions.
+- **Finding #10's "n=50 too small" gets a second answer beyond confidence intervals: a sensitivity sweep.** Report whether the arm ranking survives across the full plausible range of every unsourced parameter (Day 3), not one point estimate.
+- **Run provenance is now a first-class requirement, not a Day-5 nicety.** Caught via the DATABASE_URL bug (Day 1) — a relative path landing in two different files depending on invocation directory, which then *recurred live during Day 2* from a different cause (a stale process environment). Every `Batch` now carries `git_sha`/`db_path`/`corpus_hash`/`params_json` (`app/manifest.py`), and the DB path bug is now fixed at the source (`db._resolve_database_url` anchors any relative path to the repo root, regardless of where the raw value came from) rather than by convention alone.
+- **Day 4's model-layer scope changed.** The corpus that actually exists is short documented reason strings, not messy unstructured narration — synthesizing messy text in order to then extract from it would be exactly the circularity this project refuses elsewhere. Model's job moves to real published bank-narration formats or playbook synthesis + abstention over real run data; multilingual messaging is demoted to buffer.
+
 ## Revised 5-day plan
 
 Ordered so **every day ends with something submittable** — the rules-only product plus eval harness is a complete honest entry on its own, and the model layer sits on top of a thing that already stands.
 
-1. **Real corpus + durable state.** Harvest real Razorpay error responses by driving their test API with the published failure-triggering test cards. Case state machine, seeded arm assignment at intake.
-2. **Compliance-aware policy engine.** Hard/soft/technical taxonomy, network attempt budget with headroom, advice-code stops, reconcile-before-act, idempotency, deterministic gate + per-guardrail unit tests (including a replay test that proves no double charge). *Ships a defensible rules-only product.*
-3. **Simulator + eval harness.** Seeded outcome model the agent can't read, control/blind-retry/rules-only arms, lift with confidence intervals, compliance-violation counter. *Ships the ablation table — the artifact that wins the track.*
-4. **The model layer.** Narration extraction, multilingual messaging, retry timing, cost instrumentation, prompt-injection test. *Proves lift over rules — or honestly reports there wasn't much.*
-5. **Surface + packaging.** Dashboard (ablation table, lift, audit trail, unit economics), guardrails as read-only config, architecture.md, README, pitch video opening on the ablation table.
+1. ✅ **Real corpus + durable state.** Case state machine, seeded stratified arm assignment, one real payment traced end-to-end. Corpus turned out unharvestable reason-by-reason — see above.
+2. ✅ **Compliance-aware policy engine.** `docs/assumptions.md` (every parameter sourced or flagged), `corpus_builder.py`, the unknown-decline path (routes to human review, never silent auto-retry), run provenance, and the gate itself — 8 guardrails: stale-reconcile, unknown-decline, hard-decline, risk-hard-stop, already-resolved, amount ceiling, network attempt budget, break-even floor. *Ships a defensible rules-only product.*
+3. **Simulator + eval harness.** `app/simulator/` (ground truth, structurally unreadable by policy code), the paired-comparison harness, lift with confidence intervals, the sensitivity sweep, compliance-violation counter. *Ships the ablation table — the artifact that wins the track.*
+4. **The model layer, re-scoped.** Narration reconciliation on real published formats, or playbook synthesis + abstention over real run data — not synthesized messy text. Cost-per-decision instrumentation, prompt-injection test.
+5. **Surface + packaging.** Dashboard (ablation table, lift, audit trail with provenance column, unit economics, assumption sliders letting a judge move the simulator's parameters and watch the ranking hold), guardrails as read-only config, architecture.md (the evidence chain: verified-live → Razorpay-published → Recoup's-own-work → assumption → ablation result → sensitivity sweep), README leading with the finding and the limitations, pitch video opening on the sliders.
 6. **(buffer) Adversarial pass.** Fresh seeds, kill-mid-action restart test, expired key / empty batch / malformed row.
 7. **(buffer) Rehearsal.** Timed pitch, rehearse the panel probes, submit early.
 
 ## Open items
 
-- Re-verify current Visa/Mastercard attempt caps and penalty figures before quoting numbers at the panel — build headroom below the cap rather than citing a specific figure.
+- ~~Re-verify current Visa/Mastercard attempt caps and penalty figures~~ — done (Day 2): Visa 15/30 days confirmed by direct fetch; Mastercard 15/30 days confirmed on one secondary source only (not Mastercard's own publication), still treated as directional. Internal cap set to 6/30 days regardless — deliberate headroom, not a citation of anyone's actual limit.
 - Confirm whether the repo/video/architecture doc attach at application time or only after shortlisting.
+- No Alembic migration tooling yet — schema changes require regenerating the dev DB. Fine for now; revisit if it starts costing real time.
+- Day 3's harness needs to actually implement the paired-comparison design and the sensitivity sweep described above — decided, not yet built.

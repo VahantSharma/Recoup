@@ -59,25 +59,33 @@ Do not add a model call to the deterministic path to make the project feel more 
 
 ## What's real vs. simulated — keep this list honest
 
-- **Real:** the error corpus. Razorpay publishes test cards that trigger specific failure reasons in test mode — drive their test API with those cards and capture the actual error responses. The taxonomy is theirs, not invented. Payment Link creation is also a real test-mode call.
-- **Simulated:** message delivery, and the outcome model that decides whether a retry would have succeeded. The simulator is a separate seeded module the agent never reads, with documented parameters.
+- **Real:** Payment Link creation is a real test-mode call, and specific payment ids in `backend/data/harvested_corpus.json` are real observations from driving Razorpay's actual test-mode checkout. Turned out narrower than first assumed — see below.
+- **Razorpay's, but not the classification:** the 16 documented error reason strings (`errors/payments/cards`) are Razorpay's own vocabulary. The hard/soft/technical classification built on top of them is not — Razorpay publishes no `error_source`, `error_step`, or retryable designation alongside any reason. That mapping is Recoup's own work, grounded in card-network convention, and should be described that way, not as a transcription.
+- **Built, not harvested:** the corpus. Razorpay's mock bank page (hosted checkout) turned out to be a plain Success/Failure toggle that doesn't branch on the specific test card number — confirmed by actually driving 3 real checkouts, not assumed. So the corpus is *resampled* (`backend/app/corpus_builder.py`) from the documented reason strings against sourced-or-flagged distributions, with the one real harvested failure concatenated in untouched and tagged `decline_class_source='harvested'` — every other row is tagged `'documented'`. Never let the two get presented as the same kind of evidence.
+- **Simulated:** message delivery, and the outcome model that decides whether a retry would have succeeded. The simulator is a separate module under `backend/app/simulator/` that policy code is structurally forbidden from importing (enforced by a test, not just convention) — not because the agent "shouldn't" read it, but because a shared parameter feeding both the policy's belief and the simulator's ground truth would let the policy read the answer key.
 - **Stated plainly:** absolute recovery rates are simulator-dependent. The meaningful result is the *relative* comparison across arms on identical seeds. README and pitch must say this.
+
+## Assumptions register and run provenance — load-bearing, not optional
+
+Every parameter in the corpus builder, the policy gate, or the simulator that isn't a real harvested observation goes in `docs/assumptions.md` as a sourced range or an explicit "NO PUBLIC SOURCE FOUND" with a wide swept range — never an invented point estimate, and never inlined in code before it's a row there. **Verify every citation against the primary source — the exact sentence, fetched and read — before writing the row, not after.** This isn't hypothetical caution: a real draft of that file once cited a 40–70% recovery-rate figure to an article that doesn't contain it anywhere. Caught by re-fetching the source, not by re-reading the file. Keep an incident like that *in* the file as a worked example when it happens — a register that's caught something is more credible than one that hasn't, not less.
+
+Every batch run gets a manifest (`app/manifest.py`): git SHA, absolute DB path, a hash of the exact corpus it ran over, and the full parameter set. This exists because of the DATABASE_URL bug — a relative path silently resolving to two different files depending on invocation directory, which is exactly the failure mode a four-arm ablation can't afford (control and treatment quietly measuring different things, with a lift number that's pure artifact). Fix that class of bug at the source when you find it (anchor the ambiguity away, e.g. resolve relative paths against the repo root, not cwd) — don't just correct the one instance and rely on convention not to reintroduce it.
 
 ## Evaluation
 
-Four arms, same batch, same seed: control (no action) → blind retry → rules only → rules + model. Report lift with confidence intervals. Track compliance violations alongside recovery, so blind-retry's higher gross recovery is shown next to what it costs. Keep classification metrics separate from business metrics — conflating them is a tell.
+Four arms, same batch, same seed: control (no action) → blind retry → rules only → rules + model. Headline comparison is a **paired counterfactual** — every arm runs over the same full case set from identical seeded conditions, not a 4-way split (which would put each arm at n/4 and reintroduce the "n too small" problem). Report lift with confidence intervals, plus a **sensitivity sweep** across every unsourced parameter's range — the real claim is "the ranking holds across the plausible parameter space," not one point estimate; name exactly where it flips if it does. Track compliance violations alongside recovery, so blind-retry's higher gross recovery is shown next to what it costs. Keep classification metrics separate from business metrics — conflating them is a tell.
 
 If rules-only captures most of the value, report that honestly. Bounding your own AI's contribution is more credible than overclaiming.
 
 ## Stack & commands
 
-- Backend: Python 3.11, FastAPI, SQLite (`data/recoup.db`). Run: `cd backend && uvicorn app.main:app --reload`
-- Frontend: React + Vite. Run: `cd frontend && npm run dev`
-- Tests: `cd backend && pytest`
-- Corpus harvest: `cd backend && python -m scripts.harvest_corpus`
-- Batch run: `cd backend && python -m scripts.run_batch --seed 42`
+- Backend: Python 3.11, SQLAlchemy 2.0, SQLite (`data/recoup.db`, path resolved by `backend/app/db.py` regardless of invocation directory — see `db._resolve_database_url`). `cd backend && pip install -r requirements.txt`
+- Tests: `cd backend && pytest` (62 tests as of Day 2 — state machine, idempotency/replay, arm assignment, taxonomy incl. unknown-decline, corpus builder, DATABASE_URL resolution, run manifest, import boundary, the policy gate's 8 guardrails)
+- Day 1 real-corpus demo: `cd backend && python -m scripts.seed_day1_demo`
+- Day 2 corpus-builder demo: `cd backend && python -m scripts.seed_day2_corpus_demo`
+- FastAPI app (`uvicorn app.main:app --reload`) and the React/Vite frontend don't exist yet — Day 5 surface work. Don't reference commands for either until they're real; this line itself gets deleted the day they land, not left half-true.
 
-(Update this section the moment the real scripts exist — don't leave it aspirational.)
+(Update this section the moment more real scripts exist — don't leave it aspirational.)
 
 ## MCP servers (see `.mcp.json`)
 
@@ -102,4 +110,5 @@ Razorpay already ships Optimizer: success-rate-based routing, automatic downtime
 - Do not skip reconcile-before-act or idempotency, even "just for the demo."
 - Do not express a guardrail as a prompt instruction.
 - Do not fabricate a metric, precision/recall figure, or ₹ amount not computed from a real run.
+- Do not add a row to `docs/assumptions.md` citing a source you haven't actually fetched and read the exact sentence from this session.
 - Do not commit `.env` or any live-mode credentials. Test mode only, ever.
