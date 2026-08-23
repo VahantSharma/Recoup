@@ -20,6 +20,7 @@ from pathlib import Path
 
 from app.db import SessionLocal, init_db
 from app.intake import assign_arms_stratified
+from app.manifest import corpus_hash, db_path, git_sha, params_json
 from app.models import Batch, PaymentCase
 from app.state_machine import transition
 from app.taxonomy import classify
@@ -41,7 +42,15 @@ def main() -> None:
 
     session = SessionLocal()
     try:
-        batch = Batch(seed=42, description="Day 1 demo — real harvested corpus, 2026-08-22")
+        batch = Batch(
+            seed=42,
+            description="Day 1 demo — real harvested corpus, 2026-08-22",
+            git_sha=git_sha(),
+            db_path=db_path(),
+            corpus_hash=corpus_hash([e["payment"] for e in failed]),
+            params_json=params_json({"source": "harvested", "n": len(failed)}),
+            simulated_start_at=_now(),
+        )
         session.add(batch)
         session.flush()
 

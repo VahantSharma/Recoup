@@ -37,6 +37,17 @@ class Batch(Base):
     description: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(default=_now)
 
+    # Run provenance (Day 2) — the DATABASE_URL bug's lesson made structural: a stale
+    # corpus, a changed seed, or an uncommitted policy tweak between two runs must
+    # never be invisible. See app.manifest.
+    git_sha: Mapped[str] = mapped_column(default="unknown")
+    db_path: Mapped[str] = mapped_column(default="unknown")  # snapshotted, not trusted
+                                                               # to stay stable globally
+    corpus_hash: Mapped[str] = mapped_column(default="unknown")
+    params_json: Mapped[str] = mapped_column(default="{}")
+    simulated_start_at: Mapped[datetime] = mapped_column(default=_now)  # this batch's
+                                                                          # simulated "day 0"
+
     cases: Mapped[list["PaymentCase"]] = relationship(back_populates="batch")
 
 
@@ -79,6 +90,10 @@ class PaymentCase(Base):
 
     state_updated_at: Mapped[datetime] = mapped_column(default=_now)
     created_at: Mapped[datetime] = mapped_column(default=_now)
+    # Simulated arrival time within the batch's simulated window (distinct from
+    # created_at, the real wall-clock DB insert time) — see docs/assumptions.md's
+    # Time model. The gate's `now` is always this clock, never wall-clock.
+    simulated_at: Mapped[datetime] = mapped_column(default=_now)
 
     batch: Mapped["Batch"] = relationship(back_populates="cases")
     attempts: Mapped[list["CaseAttempt"]] = relationship(
@@ -118,6 +133,13 @@ class CaseAttempt(Base):
 
     executed_at: Mapped[datetime | None] = mapped_column(default=None)
     outcome: Mapped[str | None] = mapped_column(default=None)  # recovered | still_failed | error
+
+    # Denormalized copy of case.decline_class_source at the moment this decision was
+    # recorded — on purpose, so an audit-log row is self-contained (whether THIS
+    # decision rested on live or documented evidence) without depending on a join to
+    # still resolve correctly years later, even if the case row's classification is
+    # ever revised.
+    decline_class_source_at_decision: Mapped[str | None] = mapped_column(default=None)
 
     created_at: Mapped[datetime] = mapped_column(default=_now)
 
