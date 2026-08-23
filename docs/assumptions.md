@@ -205,6 +205,24 @@ Source: NO PUBLIC SOURCE FOUND for real intraday/weekly failed-payment arrival s
   Uniform draw across the window is the explicit honest default, not a claim of realism.
 Used by: corpus_builder.build_corpus() — assigns each case's `simulated_at`.
 
+### risk_flag_rate_bps
+Value: range [0, 500] bps (0–5%), default 150 bps (1.5%)
+Source: **NO PUBLIC SOURCE FOUND.** Added Day 3 after a guardrail firing-count audit
+  found `risk_hard_stop` was unit-tested (`test_rejects_risk_flagged_case_to_needs_review`)
+  but structurally unreachable by any generated corpus: the taxonomy's only
+  `risk_flagged=True` reason (`payment_risk_check_failed`) is HARD-classified, and the
+  gate checks hard-decline stop before risk hard-stop, so that one reason always exits
+  through the hard-decline guardrail first. In a real system a risk/fraud score is an
+  independent signal from the decline reason itself — a soft-declined payment can
+  still be separately flagged by a risk engine — so this parameter draws that flag
+  independently, per case, for every decline class. No published rate exists for how
+  often Razorpay's or an acquirer's risk engine flags a *failed* payment specifically;
+  the range is a deliberately small, swept placeholder, not a claim about real
+  fraud-flagging incidence.
+Used by: `corpus_builder.build_corpus()` — `risk_flagged = info.risk_flagged OR
+  independent_draw`. Never applied to the one real harvested row (see the module
+  docstring: that row's fields are a specific observed fact, not resampled).
+
 `card_reuse_factor` itself now lives in the HEADLINE RISK section above, promoted
 after the Day 3 checkpoint run showed it was quietly determining `rules_only`'s
 recovery performance via card-budget saturation, not just enabling a guardrail test —

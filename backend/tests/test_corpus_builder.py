@@ -90,6 +90,39 @@ def test_output_length_is_n_plus_one_real_harvested_failure():
     assert len(drafts) == 51
 
 
+def test_risk_flag_reaches_non_hard_cases_at_default_rate():
+    """Without an independent risk-flag draw, risk_flagged=True only ever occurs on
+    the one HARD-classified reason ('payment_risk_check_failed'), which the gate's
+    hard-decline stop catches before risk_hard_stop is ever reached -- risk_hard_stop
+    would be unit-tested but never actually exercised by any generated corpus. This
+    proves the independent draw reaches soft/technical cases too, at n large enough
+    for the default 1.5% rate to show up reliably."""
+    drafts = build_corpus(n=3000, seed=42, batch_simulated_start_at=_start())
+    flagged_non_hard = [d for d in drafts if d.risk_flagged and d.decline_class != HARD]
+    assert len(flagged_non_hard) > 0, "risk_hard_stop needs a risk-flagged soft/technical case to ever fire"
+
+
+def test_risk_flag_rate_is_swept_correctly():
+    n = 3000
+    off = build_corpus(n=n, seed=42, batch_simulated_start_at=_start(), risk_flag_rate_bps=0)
+    off_independent = [d for d in off if d.risk_flagged and d.decline_class != HARD]
+    assert len(off_independent) == 0, "risk_flag_rate_bps=0 must produce zero independently-flagged cases"
+
+    high = build_corpus(n=n, seed=42, batch_simulated_start_at=_start(), risk_flag_rate_bps=2000)
+    high_share = sum(1 for d in high if d.risk_flagged) / n
+    assert 0.15 < high_share < 0.25, f"20% risk_flag_rate_bps should flag roughly a fifth of cases, got {high_share:.1%}"
+
+
+def test_harvested_row_risk_flag_is_never_touched_by_the_independent_draw():
+    """The one real harvested case is a specific observed fact, concatenated in
+    untouched -- see the module docstring. Its risk_flagged must come from the
+    taxonomy alone, never from the independent random draw applied to synthetic
+    rows, at any risk_flag_rate_bps."""
+    drafts = build_corpus(n=10, seed=42, batch_simulated_start_at=_start(), risk_flag_rate_bps=10_000)
+    harvested = [d for d in drafts if d.decline_class_source == "harvested"][0]
+    assert harvested.risk_flagged is False  # payment_failed -> SOFT, risk_flagged=False in the taxonomy
+
+
 def test_ceiling_concentrates_value_far_more_than_count():
     """The named finding in docs/assumptions.md, proven directly: at default sigma,
     ~6.4% of cases by count clear the ceiling but represent well over a third of

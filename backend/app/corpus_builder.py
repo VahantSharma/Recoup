@@ -79,6 +79,7 @@ def build_corpus(
     ticket_size_sigma: float = 1.2,  # docs/assumptions.md: ticket_size_lognormal_sigma
     arrival_window_days: int = 30,  # docs/assumptions.md: arrival_window_days
     card_reuse_factor: float = 4.0,  # docs/assumptions.md: card_reuse_factor
+    risk_flag_rate_bps: int = 150,  # docs/assumptions.md: risk_flag_rate_bps
 ) -> list[CaseDraft]:
     rng = random.Random(seed)
 
@@ -94,6 +95,17 @@ def build_corpus(
 
         reason = rng.choice(_reasons_for_class(decline_class))
         info = REASON_TAXONOMY[reason]
+
+        # Risk-flagging as a signal independent of decline reason -- real fraud/risk
+        # scoring (Razorpay Risk or an acquirer's own engine) can flag a payment
+        # regardless of why the issuer declined it, not only through the one
+        # documented reason string that happens to carry risk_flagged=True in the
+        # taxonomy above ('payment_risk_check_failed', which is HARD-classified and
+        # so is already caught by the gate's hard-decline stop before risk_hard_stop
+        # is ever reached -- see docs/assumptions.md's risk_flag_rate_bps entry).
+        # Without this independent draw, risk_hard_stop is unit-tested but never
+        # actually exercised by any generated corpus.
+        risk_flagged = info.risk_flagged or (rng.random() < risk_flag_rate_bps / 10_000)
 
         # Log-normal ticket size, floored at ₹1 (100 paise) — a payment of literally
         # zero or negative paise isn't a real case.
@@ -121,7 +133,7 @@ def build_corpus(
             error_step=None,
             decline_class=info.decline_class,
             decline_class_source=info.source,
-            risk_flagged=info.risk_flagged,
+            risk_flagged=risk_flagged,
             simulated_at=simulated_at,
         ))
 
