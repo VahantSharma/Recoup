@@ -1,0 +1,11 @@
+#!/bin/sh
+# Belt-and-suspenders alongside .claude/settings.json's attribution.commit="" —
+# there's a known bug where that setting doesn't always take effect. Strips any
+# Claude Code co-authorship trailer from the commit message before it's finalized.
+#
+# Enable with: git config core.hooksPath .githooks
+# (not automatic on a fresh clone — git has no mechanism for a repo to set its own
+# clone's local config — see SETUP.md.)
+
+sed -i.bak '/^Co-Authored-By: Claude/Id' "$1"
+rm -f "$1.bak"

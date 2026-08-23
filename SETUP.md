@@ -82,6 +82,18 @@ git commit -m "scaffold: CLAUDE.md, MCP config, buildathon plan"
 ```
 Create the GitHub repo yourself, or — since the `github` MCP server is already connected — just ask Claude Code to create it and push for you.
 
+## 8. Enable the local git hooks (once per clone)
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`.githooks/commit-msg` strips the Claude Code co-authorship trailer from commits,
+backing up `.claude/settings.json`'s `attribution.commit = ""` (there's a known bug
+where that setting alone doesn't always take effect). This is local git config, not
+something a repo can set for its own future clones — every fresh clone needs this run
+once.
+
 ## Notes on robustness
 
 - `.mcp.json` is committed to git on purpose, so the environment is reproducible for anyone (including a future you) who clones this repo and follows steps 1–4. It carries zero secrets — only variable *names*.

@@ -1,0 +1,6 @@
+# Shell scripts must keep LF endings regardless of platform — a CRLF shebang script
+# breaks with a cryptic "bad interpreter" / "$'\r': command not found" error, which is
+# exactly the class of silent-platform-divergence bug this project treats as a first-
+# class risk (see docs/assumptions.md and the DATABASE_URL finding in Day 1).
+.githooks/* text eol=lf
+*.sh text eol=lf
