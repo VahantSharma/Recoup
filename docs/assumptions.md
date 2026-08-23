@@ -363,6 +363,54 @@ Source: NO PUBLIC SOURCE FOUND. Day 3 uses a flat delay between a rejected/faile
 Used by: `app/harness/` — scheduling the next `ACTION_DUE` event after a failed
   attempt, for the arms that keep retrying.
 
+## Compliance economics (Day 3)
+
+**Break-even penalty rate, solved on net value (corrected — see the citation log's
+100x cost fix), measured against the checkpoint run (n=1201, seed=42, default
+params):**
+
+```
+net_value(arm) = recovered_amount(arm) − attempts(arm) × cost_per_contact_attempt
+net_value(blind_retry)  = ₹14,32,653.11
+net_value(rules_only)   = ₹6,44,405.69
+violation_count(blind_retry) = 14,955   (rules_only: 0, by construction)
+
+penalty_break_even = (net_value(blind_retry) − net_value(rules_only)) / violation_count(blind_retry)
+                    = ₹52.71 per violation
+```
+
+**Compared against the published network penalties already in this register, using a
+directly fetched, cited exchange rate (not assumed): 1 USD = ₹95.70 (Xe.com,
+mid-market rate, 09:25 UTC, 23 Aug 2026, https://www.xe.com/en-us/currencyconverter/) —**
+
+| Network | Published direct per-excess-attempt penalty | In ₹ | vs ₹52.71 break-even |
+|---|---|---|---|
+| Visa | $0.10 (domestic) | ₹9.57 | **below** — compliance does not pay for itself on this alone |
+| Mastercard | $1.00–$2.00 | ₹95.70–₹191.40 | **above** — compliance pays for itself |
+
+**The honest reading: break-even sits *between* the two networks' published direct
+penalties, not cleanly below or above both.** Compliance is economically justified by
+the direct per-transaction penalty alone under Mastercard's schedule, and is not
+under Visa's — stated plainly, not rounded away in either direction. A clean "rules
+always wins on cost" claim would be false; so would "compliance doesn't pay."
+
+**What the direct per-transaction penalty doesn't price in — named, not left
+implicit:** Visa's own **Merchant Monitoring Program** — verified by direct fetch,
+same source as the attempt-cap figures above (a secondary blog, not Visa's own
+primary publication, so directional not authoritative, same caveat as
+`network_attempt_budget_per_card_30d`) — flags merchants exceeding a 15% decline rate
+or 1,000+ monthly declined transactions with fines of **$5,000–$75,000/month** until
+compliant — a program-level escalation that a single-transaction penalty figure
+doesn't capture at all. Also unpriced here: account review/suspension risk, and
+customer churn from being retried up to ~45 times on a single failed payment (blind
+retry's own behavior this session — see the Day 3 checkpoint). **The defensible claim
+is that direct per-transaction penalties alone don't justify compliance under every
+network's published schedule; tail risk (program-level fines, account review, churn)
+does the rest of the work** — a more precise and more credible claim than either "it
+clearly pays" or "it clearly doesn't."
+
+---
+
 ### max_case_lifetime_days
 Value: 45, default, range [20, 90] for sweeping
 Source: NOT empirical — an engineering/product policy knob: how long a case's own

@@ -8,9 +8,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.corpus_builder import build_corpus
+from app.harness.compliance import break_even_penalty_paise, net_value_paise, total_violations
 from app.harness.policies import BlindRetryPolicy, ControlPolicy, RulesOnlyPolicy
 from app.harness.run import run_ablation
 from app.harness.stats import paired_bootstrap_lift
+from app.policy_params import COST_PER_CONTACT_ATTEMPT_MILLI_PAISE
+
+# Directly fetched, cited -- not assumed. See docs/assumptions.md's Compliance economics.
+USD_TO_INR = 95.70  # Xe.com mid-market rate, 09:25 UTC, 23 Aug 2026
 
 N = 1200
 SEED = 42
@@ -36,7 +41,10 @@ def main() -> None:
         n_deferred = sum(r.outcome == "deferred_to_human_review" for r in rows)
         n_not_recovered = sum(r.outcome == "not_recovered" for r in rows)
         total_attempts = sum(r.attempt_count for r in rows)
-        total_violations = sum(r.violation_count for r in rows)
+        arm_violations = total_violations(rows)  # app.harness.compliance's function --
+                                                    # a prior local var here shadowed
+                                                    # the import; renamed, not just
+                                                    # worked around
         recovered_amount = sum(r.amount_paise for r in rows if r.recovered)
         deferred_amount = sum(r.amount_paise for r in rows if r.outcome == "deferred_to_human_review")
         print(
@@ -44,7 +52,7 @@ def main() -> None:
             f"not_recovered={n_not_recovered/n:.3%}"
         )
         print(
-            f"{'':>12}  total_attempts={total_attempts}  total_violations={total_violations}  "
+            f"{'':>12}  total_attempts={total_attempts}  total_violations={arm_violations}  "
             f"recovered_amount={_fmt_paise(recovered_amount)}  deferred_amount={_fmt_paise(deferred_amount)}"
         )
 
@@ -62,6 +70,18 @@ def main() -> None:
             f"(95% CI [{_fmt_paise(lift.amount_lift_ci_low_paise)}, "
             f"{_fmt_paise(lift.amount_lift_ci_high_paise)}])"
         )
+
+    print("\n--- compliance economics: break-even penalty rate (net value, not gross) ---")
+    penalty_paise = break_even_penalty_paise(
+        results["rules_only"], results["blind_retry"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE,
+    )
+    penalty_usd = (penalty_paise / 100) / USD_TO_INR
+    print(f"net_value(blind_retry) = {_fmt_paise(net_value_paise(results['blind_retry'], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE))}")
+    print(f"net_value(rules_only)  = {_fmt_paise(net_value_paise(results['rules_only'], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE))}")
+    print(f"violations(blind_retry) = {total_violations(results['blind_retry'])}")
+    print(f"break-even penalty = {_fmt_paise(penalty_paise)} per violation  (${penalty_usd:.2f} at 1 USD = Rs{USD_TO_INR})")
+    print("  vs Visa $0.10/excess (Rs%.2f): break-even is ABOVE -> compliance doesn't pay on this alone" % (0.10 * USD_TO_INR))
+    print("  vs Mastercard $1.00-$2.00/excess (Rs%.2f-Rs%.2f): break-even is BELOW -> compliance pays" % (1.00 * USD_TO_INR, 2.00 * USD_TO_INR))
 
 
 if __name__ == "__main__":
