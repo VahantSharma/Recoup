@@ -107,6 +107,25 @@ def test_control_never_defers_it_never_calls_the_gate():
     assert all(r.outcome != "deferred_to_human_review" for r in results["control"])
 
 
+def test_rules_only_saturates_most_of_the_shared_card_budget():
+    """The HEADLINE RISK finding on card_reuse_factor, proven directly: rules_only's
+    total attempts should land close to (n_cards * network_attempt_budget_per_card_30d)
+    -- its recovery is budget-determined via card sharing, not policy-determined."""
+    from app.policy_params import NETWORK_ATTEMPT_BUDGET_PER_CARD_30D
+
+    n = 1201
+    card_reuse_factor = 4.0
+    corpus = _small_corpus(n=n, seed=42)
+    results = run_ablation(corpus, [RulesOnlyPolicy()], master_seed=42)
+
+    n_cards = round(n / card_reuse_factor)
+    theoretical_capacity = n_cards * NETWORK_ATTEMPT_BUDGET_PER_CARD_30D
+    total_attempts = sum(r.attempt_count for r in results["rules_only"])
+    saturation = total_attempts / theoretical_capacity
+
+    assert saturation > 0.85, f"expected high budget saturation, got {saturation:.1%}"
+
+
 def test_every_case_appears_exactly_once_per_arm():
     corpus = _small_corpus(n=150)
     results = run_ablation(corpus, [ControlPolicy(), RulesOnlyPolicy()], master_seed=42)

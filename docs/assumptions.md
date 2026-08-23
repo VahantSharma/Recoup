@@ -49,12 +49,13 @@ this file as the worked example.
 
 ## HEADLINE RISK — read this section first
 
-**Five parameters, not one, now jointly determine the ablation's result, and none of
+**Six parameters, not one, now jointly determine the ablation's result, and none of
 them has a public source.** Promoting `policy_prior_recovery_rate_bps` and
 `sim_true_recovery_rate_bps` here after the fabrication above raised the stakes on
 this section considerably — it was one unsourced parameter, now it's three. Day 3
-raised it again: `organic_recovery_rate_bps` and `p_case_recoverable_bps` join them,
-all multiplying together.
+raised it twice more: `organic_recovery_rate_bps` and `p_case_recoverable_bps` first,
+then `card_reuse_factor` after the checkpoint run showed it was quietly deciding the
+headline result, not just enabling a guardrail test.
 
 ### organic_recovery_rate_bps — read this one first of all
 Value: `{hard: 0, soft: range[200,7000] bps, technical: range[200,7000] bps}`,
@@ -112,6 +113,28 @@ Used by: `app/simulator/outcomes.py`. Unrecoverable cases (the `p_case_recoverab
   parameter. If varying `hard_share_of_nonsoft` moves the ranking more than any other
   swept parameter, that finding is the single most important sentence in the Day 3
   write-up — stated as such, not filed as a row in a results table.
+
+### card_reuse_factor — promoted here after the Day 3 checkpoint run
+Value: range [1.5, 8.0], default 4.0 — expected number of cases sharing each
+  synthetic card (`n_distinct_cards = max(1, round(n / card_reuse_factor))`)
+Source: NO PUBLIC SOURCE FOUND. Originally added on Day 2 as plumbing — without card
+  reuse the network-attempt-budget guardrail was structurally untestable through the
+  corpus (every synthesized case got a unique card, so no case could ever accumulate
+  enough same-card attempts to hit the cap). It has since turned out to do far more
+  than that.
+Used by: corpus_builder.build_corpus() — replaces one-card-per-case.
+**Why this is HEADLINE RISK, not corpus plumbing: measured directly against the
+  checkpoint run (n=1201, seed=42, default params) — `rules_only` used 1,699 of the
+  ~1,800 attempts theoretically available across its card pool (300 cards ×
+  `network_attempt_budget_per_card_30d`=6) — 94.4% budget saturation.** Its recovery
+  performance is therefore **budget-determined, not policy-determined**: cases are
+  competing for a shared per-card attempt budget, so a case's odds of getting enough
+  tries to succeed depend on how many *other* cases happen to share its card, not on
+  anything the policy itself decides. That dependency runs through a parameter that
+  has never been sourced and was introduced to make a different guardrail testable —
+  worth stating plainly rather than discovering it in a sweep table with no
+  explanation attached. Swept prominently in the Day 3 OAT sweep as a result, not
+  folded in as one row among many.
 
 ### hard_share_of_nonsoft
 Value: range [0.20, 0.80], default 0.50 (float — generative parameter)
@@ -174,19 +197,12 @@ Source: NO PUBLIC SOURCE FOUND for real intraday/weekly failed-payment arrival s
   Uniform draw across the window is the explicit honest default, not a claim of realism.
 Used by: corpus_builder.build_corpus() — assigns each case's `simulated_at`.
 
-### card_reuse_factor
-Value: range [1.5, 8.0], default 4.0 — expected number of cases sharing each
-  synthetic card (`n_distinct_cards = max(1, round(n / card_reuse_factor))`)
-Source: NO PUBLIC SOURCE FOUND. Added because without card reuse, every synthesized
-  case got a unique `card_synth_` id and `attempt_count_in_window` could never
-  approach the network-attempt-budget guardrail (at most a few attempts accrue on a
-  single case's own retry lifecycle, against a budget of 6) — the guardrail was
-  structurally untestable through the corpus. Real failed payments cluster on the
-  same card; this parameter is the honest, unsourced stand-in for that clustering
-  shape until a better one exists. Cases are assigned to the card pool uniformly at
-  random (seeded) — no distribution shape is known here either, so uniform is the
-  same honest default used for `arrival_window_days`.
-Used by: corpus_builder.build_corpus() — replaces one-card-per-case.
+`card_reuse_factor` itself now lives in the HEADLINE RISK section above, promoted
+after the Day 3 checkpoint run showed it was quietly determining `rules_only`'s
+recovery performance via card-budget saturation, not just enabling a guardrail test —
+not repeated here. Cases are still assigned to the card pool uniformly at random
+(seeded) — no distribution shape is known for real card-reuse clustering either, so
+uniform is the same honest default used for `arrival_window_days`.
 
 ---
 
