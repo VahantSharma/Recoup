@@ -78,6 +78,17 @@ def test_joint_random_sweep_is_reproducible():
     assert a == b
 
 
+def test_break_even_penalty_is_present_on_every_row_float_or_none():
+    rows = joint_random_sweep(n_draws=20, n_cases=200, base_seed=9)
+    for r in rows:
+        assert "break_even_penalty_paise" in r
+        assert r["break_even_penalty_paise"] is None or isinstance(r["break_even_penalty_paise"], float)
+    # at n=200 with default-ish random parameters, at least some draws should produce
+    # a real break-even figure (blind_retry racking up at least one violation) --
+    # otherwise the field would be silently always-None and nobody would notice.
+    assert any(r["break_even_penalty_paise"] is not None for r in rows)
+
+
 def test_swept_values_stay_within_their_declared_range():
     rows = joint_random_sweep(n_draws=30, n_cases=30, base_seed=11)
     for r in rows:

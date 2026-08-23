@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from .. import policy_params
 from ..corpus_builder import build_corpus
 from ..simulator import params as sim_params
+from . import compliance
 from .policies import BlindRetryPolicy, ControlPolicy, RulesOnlyPolicy
 from .run import run_ablation
 from .stats import paired_bootstrap_lift
@@ -139,6 +140,11 @@ class SweepResult:
     rules_beats_control: bool
     rate_lift_blind_vs_rules: float
     blind_beats_rules: bool
+    # None when this draw's blind_retry made zero violations at this parameter point --
+    # break_even_penalty_paise has nothing to solve for then (see compliance.py). Rare,
+    # but a real possible outcome at some corner of the swept space, not an error to
+    # hide -- callers report how many draws produced no violations separately.
+    break_even_penalty_paise: float | None
 
 
 def _run_point(n: int, seed: int, corpus_kw: dict, ablation_kw: dict, policy_ov: dict, sim_ov: dict) -> SweepResult:
@@ -148,8 +154,16 @@ def _run_point(n: int, seed: int, corpus_kw: dict, ablation_kw: dict, policy_ov:
             corpus, [ControlPolicy(), RulesOnlyPolicy(), BlindRetryPolicy()],
             master_seed=seed, **ablation_kw,
         )
+        cost = policy_params.COST_PER_CONTACT_ATTEMPT_MILLI_PAISE  # read while still
+                                                                      # patched, so a
+                                                                      # swept cost value
+                                                                      # is the one used
     lift_rules_control = paired_bootstrap_lift(results["rules_only"], results["control"], seed=1, n_bootstrap=300)
     lift_blind_rules = paired_bootstrap_lift(results["blind_retry"], results["rules_only"], seed=1, n_bootstrap=300)
+    try:
+        break_even = compliance.break_even_penalty_paise(results["rules_only"], results["blind_retry"], cost)
+    except ValueError:
+        break_even = None  # blind_retry made zero violations at this parameter point
     return SweepResult(
         seed=seed,
         param_hash="",  # filled in by caller, which knows the params dict
@@ -157,6 +171,7 @@ def _run_point(n: int, seed: int, corpus_kw: dict, ablation_kw: dict, policy_ov:
         rules_beats_control=lift_rules_control.rate_lift > 0,
         rate_lift_blind_vs_rules=lift_blind_rules.rate_lift,
         blind_beats_rules=lift_blind_rules.rate_lift > 0,
+        break_even_penalty_paise=break_even,
     )
 
 
@@ -180,6 +195,7 @@ def oat_sweep(n: int = 500, base_seed: int = 42) -> list[dict]:
                 "rules_beats_control": result.rules_beats_control,
                 "rate_lift_blind_vs_rules": result.rate_lift_blind_vs_rules,
                 "blind_beats_rules": result.blind_beats_rules,
+                "break_even_penalty_paise": result.break_even_penalty_paise,
             })
     return rows
 
@@ -208,5 +224,6 @@ def joint_random_sweep(n_draws: int = 500, n_cases: int = 300, base_seed: int = 
             "rules_beats_control": result.rules_beats_control,
             "rate_lift_blind_vs_rules": result.rate_lift_blind_vs_rules,
             "blind_beats_rules": result.blind_beats_rules,
+            "break_even_penalty_paise": result.break_even_penalty_paise,
         })
     return rows
