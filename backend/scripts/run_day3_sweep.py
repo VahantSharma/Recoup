@@ -5,12 +5,18 @@ Run: cd backend && python -m scripts.run_day3_sweep
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import statistics
 from collections import defaultdict
 
+from app import manifest
 from app.harness.sweep import PARAM_SPECS, joint_random_sweep, oat_sweep
 
 BASE_SEED = 42
+OAT_N = 500
+JOINT_N_DRAWS = 500
+JOINT_N_CASES = 300
 
 # Published direct per-excess-attempt penalties, in PAISE (matching
 # break_even_penalty_paise's own unit -- see app/harness/compliance.py), at the dated/
@@ -39,10 +45,26 @@ def _percentile(values: list[float], pct: float) -> float:
 
 
 def main() -> None:
+    # No single "corpus" exists for a sweep (70 + 500 different corpora, one per
+    # point/draw) -- the manifest here is the sweep CONFIGURATION: git SHA, the exact
+    # declared parameter space, and the run sizes, so any point is reproducible from
+    # (base_seed, its own param dict) alone, and the configuration itself is pinned to
+    # one commit -- same discipline as the ablation checkpoint's corpus-level manifest.
+    sweep_config = {
+        "base_seed": BASE_SEED, "oat_n": OAT_N,
+        "joint_n_draws": JOINT_N_DRAWS, "joint_n_cases": JOINT_N_CASES,
+        "param_specs": PARAM_SPECS,
+    }
+    config_hash = hashlib.sha256(json.dumps(sweep_config, sort_keys=True, default=str).encode()).hexdigest()[:16]
+    print("=== MANIFEST -- every figure below traces to this run ===")
+    print(f"git_sha      = {manifest.git_sha()}")
+    print(f"config_hash  = {config_hash}")
+    print()
+
     print(f"Swept parameters ({len(PARAM_SPECS)}): {', '.join(PARAM_SPECS)}\n")
 
     print("=== OAT sweep (5 points/parameter, n=500 cases/point) ===\n")
-    oat_rows = oat_sweep(n=500, base_seed=BASE_SEED)
+    oat_rows = oat_sweep(n=OAT_N, base_seed=BASE_SEED)
 
     by_param: dict[str, list[dict]] = defaultdict(list)
     for r in oat_rows:
@@ -88,7 +110,7 @@ def main() -> None:
           f"shift, not a coincidence.")
 
     print("\n=== Joint random sweep (500 draws, n=300 cases/draw) ===\n")
-    joint_rows = joint_random_sweep(n_draws=500, n_cases=300, base_seed=BASE_SEED)
+    joint_rows = joint_random_sweep(n_draws=JOINT_N_DRAWS, n_cases=JOINT_N_CASES, base_seed=BASE_SEED)
 
     holds = sum(r["rules_beats_control"] for r in joint_rows)
     print(f"[sanity check, not the headline] rules_only beat control in {holds}/{len(joint_rows)} draws.")

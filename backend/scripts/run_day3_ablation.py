@@ -1,19 +1,37 @@
 """Day 3 checkpoint: the real ablation at n>=1000. Per the plan, this stops here —
 shown before anything (compliance framing, sweeps) is built on top of these numbers.
 
+Every number this script prints traces to the manifest printed at the top (git SHA,
+corpus hash, full parameter set) -- if a figure in docs/results.md can't be traced to
+that manifest, it doesn't belong in the file. See app/manifest.py.
+
 Run: cd backend && python -m scripts.run_day3_ablation
 """
 from __future__ import annotations
 
+import hashlib
+import inspect
+import json
+import math
 from datetime import datetime, timezone
+from statistics import NormalDist
 
+from app import manifest
 from app.corpus_builder import build_corpus
 from app.harness.compliance import break_even_penalty_paise, net_value_paise, total_violations
 from app.harness.policies import BlindRetryPolicy, ControlPolicy, RulesOnlyPolicy
 from app.harness.run import run_arm, run_arm_with_guardrail_counts
 from app.harness.stats import paired_bootstrap_lift
-from app.policy_params import AMOUNT_CEILING_PAISE, COST_PER_CONTACT_ATTEMPT_MILLI_PAISE
-from app.taxonomy import HARD
+from app.policy_params import (
+    AMOUNT_CEILING_PAISE,
+    ATTEMPT_DECAY_FACTOR,
+    COST_PER_CONTACT_ATTEMPT_MILLI_PAISE,
+    NETWORK_ATTEMPT_BUDGET_PER_CARD_30D,
+    POLICY_PRIOR_RECOVERY_RATE_BPS,
+    RECONCILE_FRESHNESS_WINDOW_SECONDS,
+)
+from app.simulator.params import ORGANIC_RECOVERY_RATE_BPS, P_CASE_RECOVERABLE_BPS, SIM_TRUE_RECOVERY_RATE_BPS
+from app.taxonomy import HARD, UNKNOWN
 
 # Directly fetched, cited -- not assumed. See docs/assumptions.md's Compliance economics.
 USD_TO_INR = 95.70  # Xe.com mid-market rate, 09:25 UTC, 23 Aug 2026
@@ -23,14 +41,117 @@ SEED = 42
 RETRY_DELAY_HOURS = 24
 MAX_CASE_LIFETIME_DAYS = 45
 
+# Every 8 guardrails, in the gate's own checked order -- see app/gate.py.
+GUARDRAIL_ORDER = (
+    "permitted", "stale_reconcile", "unclassifiable_decline_human_review", "hard_decline_stop",
+    "risk_hard_stop", "already_resolved", "amount_ceiling_needs_signoff",
+    "network_attempt_budget_exhausted", "break_even_floor",
+)
+
+# Per-guardrail reachability verdict, worked out by tracing the gate's checked order
+# against what the harness actually feeds it -- not guessed, not left implicit. See
+# docs/results.md's Reachability table for the full write-up.
+REACHABILITY = {
+    "stale_reconcile": (
+        False,
+        "harness always calls gate.evaluate() with reconciled_at == now (age_seconds "
+        "== 0 always) -- this guardrail guards a real production race (a stale local "
+        "read vs. Razorpay's live state) that has no analog when the harness IS the "
+        "live state. Acceptable: independently unit-tested (test_gate.py); simulating "
+        "staleness would mean deliberately feeding the gate a wrong 'now', which tests "
+        "the guardrail in isolation better than a corpus-level fluke would.",
+    ),
+    "unclassifiable_decline_human_review": (
+        True,
+        "was unreachable before this round (corpus only ever generated documented "
+        "taxonomy reasons) -- fixed via unknown_reason_rate_bps, which injects reason "
+        "strings absent from REASON_TAXONOMY at a small independent rate, the same "
+        "pattern as risk_flag_rate_bps below.",
+    ),
+    "hard_decline_stop": (True, "RulesOnlyPolicy proposes a retry for every decline class alike; the gate, not the policy, is what stops hard declines."),
+    "risk_hard_stop": (
+        True,
+        "was unreachable before this round (the only taxonomy reason carrying "
+        "risk_flagged=True is HARD-classified, so hard_decline_stop always caught it "
+        "first) -- fixed via risk_flag_rate_bps, an independent per-case risk draw.",
+    ),
+    "already_resolved": (
+        False,
+        "structurally distinct from stale_reconcile, not the same reason restated: "
+        "reconciled_payment is hardcoded to {'status': 'failed'} for every gate call, "
+        "AND the event queue is a strict chronological min-heap, so any case whose "
+        "true organic resolution has already occurred by 'now' has already had its "
+        "ORGANIC event processed (which sets recovered=True and halts all further "
+        "events for that case) before any later-timed gate call could ever be reached. "
+        "The harness cannot construct a case that reaches the gate with a stale "
+        "'failed' status after it has actually resolved -- not because reconcile is "
+        "fresh, but because a resolved case never reaches another gate call at all. "
+        "Acceptable for the same reason stale_reconcile is: independently unit-tested "
+        "(test_gate.py), and it guards a real production race with no analog in a "
+        "single-threaded, chronologically-ordered simulation.",
+    ),
+    "amount_ceiling_needs_signoff": (True, "fires whenever a non-hard, non-unknown, non-risk-flagged case's amount clears AMOUNT_CEILING_PAISE."),
+    "network_attempt_budget_exhausted": (True, "fires once a card's rolling-30-day attempt count reaches NETWORK_ATTEMPT_BUDGET_PER_CARD_30D -- see card_reuse_factor's HEADLINE RISK entry."),
+    "break_even_floor": (
+        False,
+        "known dead within reachable parameters at this corpus's ticket sizes -- see "
+        "docs/assumptions.md's cost_per_contact_attempt_milli_paise finding: it only "
+        "binds at the last reachable attempt (6) for payments near Rs1, far below "
+        "this corpus's ticket-size distribution. Acceptable: independently proven to "
+        "bind on a crafted extreme input (attempt 40, Rs1) via "
+        "expected_value_milli_paise() called directly, and its binding boundary "
+        "within the budget's reachable window is exhaustively tested attempt-by-attempt.",
+    ),
+}
+
 
 def _fmt_paise(p: float) -> str:
     return f"Rs {p / 100:,.2f}"
 
 
+def _corpus_params() -> dict:
+    """The exact keyword defaults build_corpus() is called with below -- introspected
+    from the function signature rather than hand-duplicated, so this manifest can't
+    silently drift from what actually ran (the same class of bug a hand-typed second
+    copy of a parameter value has caused twice already in docs/assumptions.md)."""
+    sig = inspect.signature(build_corpus)
+    return {
+        name: p.default for name, p in sig.parameters.items()
+        if p.default is not inspect.Parameter.empty
+    }
+
+
 def main() -> None:
     start = datetime(2026, 1, 1, tzinfo=timezone.utc)
     corpus = build_corpus(n=N, seed=SEED, batch_simulated_start_at=start)
+
+    params = {
+        "n": N, "seed": SEED, "batch_simulated_start_at": start.isoformat(),
+        "retry_delay_hours": RETRY_DELAY_HOURS, "max_case_lifetime_days": MAX_CASE_LIFETIME_DAYS,
+        "corpus": _corpus_params(),
+        "policy_params": {
+            "COST_PER_CONTACT_ATTEMPT_MILLI_PAISE": COST_PER_CONTACT_ATTEMPT_MILLI_PAISE,
+            "ATTEMPT_DECAY_FACTOR": ATTEMPT_DECAY_FACTOR,
+            "AMOUNT_CEILING_PAISE": AMOUNT_CEILING_PAISE,
+            "NETWORK_ATTEMPT_BUDGET_PER_CARD_30D": NETWORK_ATTEMPT_BUDGET_PER_CARD_30D,
+            "RECONCILE_FRESHNESS_WINDOW_SECONDS": RECONCILE_FRESHNESS_WINDOW_SECONDS,
+            "POLICY_PRIOR_RECOVERY_RATE_BPS": POLICY_PRIOR_RECOVERY_RATE_BPS,
+        },
+        "simulator_params": {
+            "ORGANIC_RECOVERY_RATE_BPS": ORGANIC_RECOVERY_RATE_BPS,
+            "P_CASE_RECOVERABLE_BPS": P_CASE_RECOVERABLE_BPS,
+            "SIM_TRUE_RECOVERY_RATE_BPS": SIM_TRUE_RECOVERY_RATE_BPS,
+        },
+        "usd_to_inr": USD_TO_INR,
+    }
+    params_hash = hashlib.sha256(json.dumps(params, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+    print("=== MANIFEST -- every figure below traces to this run ===")
+    print(f"git_sha       = {manifest.git_sha()}")
+    print(f"corpus_hash   = {manifest.corpus_hash(corpus)}")
+    print(f"params_hash   = {params_hash}")
+    print(f"db_path       = {manifest.db_path()}")
+    print()
 
     # Built per-arm (not via run_ablation) so rules_only's guardrail firing counts can
     # be captured alongside its results -- identical outcomes either way, since
@@ -53,10 +174,7 @@ def main() -> None:
         n_deferred = sum(r.outcome == "deferred_to_human_review" for r in rows)
         n_not_recovered = sum(r.outcome == "not_recovered" for r in rows)
         total_attempts = sum(r.attempt_count for r in rows)
-        arm_violations = total_violations(rows)  # app.harness.compliance's function --
-                                                    # a prior local var here shadowed
-                                                    # the import; renamed, not just
-                                                    # worked around
+        arm_violations = total_violations(rows)
         recovered_amount = sum(r.amount_paise for r in rows if r.recovered)
         deferred_amount = sum(r.amount_paise for r in rows if r.outcome == "deferred_to_human_review")
         print(
@@ -95,67 +213,101 @@ def main() -> None:
     print("  vs Visa $0.10/excess (Rs%.2f): break-even is ABOVE -> compliance doesn't pay on this alone" % (0.10 * USD_TO_INR))
     print("  vs Mastercard $1.00-$2.00/excess (Rs%.2f-Rs%.2f): break-even is BELOW -> compliance pays" % (1.00 * USD_TO_INR, 2.00 * USD_TO_INR))
 
-    print("\n--- guardrail firing counts, rules_only, every gate.evaluate() call ---")
+    print("\n--- GUARDRAIL REACHABILITY TABLE, rules_only, every gate.evaluate() call ---")
     total_calls = sum(guardrail_counts.values())
-    for reason in (
-        "permitted", "stale_reconcile", "unclassifiable_decline_human_review", "hard_decline_stop",
-        "risk_hard_stop", "already_resolved", "amount_ceiling_needs_signoff",
-        "network_attempt_budget_exhausted", "break_even_floor",
-    ):
+    for reason in GUARDRAIL_ORDER:
         count = guardrail_counts.get(reason, 0)
         share = count / total_calls if total_calls else 0.0
-        flag = "  <-- never fires" if count == 0 else ""
-        print(f"  {reason:>36}: {count:>6}  ({share:.2%}){flag}")
+        if reason == "permitted":
+            print(f"  {reason:>36}: {count:>6}  ({share:.2%})  [not a guardrail -- gate approved]")
+            continue
+        reachable, why = REACHABILITY[reason]
+        verdict = "REACHABLE" if reachable else "NOT reachable"
+        print(f"  {reason:>36}: {count:>6}  ({share:.2%})  [{verdict}]")
     print(f"  {'total gate.evaluate() calls':>36}: {total_calls:>6}")
-    print(
-        "  stale_reconcile, already_resolved, and unclassifiable_decline_human_review are structurally\n"
-        "  zero here, by construction, not by chance: the harness always calls the gate with a\n"
-        "  freshly-simulated reconciled_at (age_seconds is always 0) and reconciled_payment =\n"
-        "  {'status': 'failed'} (never in gate.py's _RESOLVED_STATUSES), and the corpus never generates a\n"
-        "  decline_class == 'unknown' case (every taxonomy entry is hard/soft/technical). All three are\n"
-        "  still independently unit-tested in test_gate.py against hand-crafted inputs the harness itself\n"
-        "  never produces -- exercised by tests, not by this corpus. hard_decline_stop DOES fire here --\n"
-        "  RulesOnlyPolicy proposes a retry for every decline class alike (see policies.py); the gate,\n"
-        "  not the policy, is what stops hard declines."
-    )
+    print()
+    for reason in GUARDRAIL_ORDER:
+        if reason == "permitted":
+            continue
+        reachable, why = REACHABILITY[reason]
+        print(f"  {reason} [{'REACHABLE' if reachable else 'NOT reachable'}]: {why}")
+        print()
 
-    print("\n--- deferred-bucket reconciliation (rules_only) ---")
-    ceiling_blocked_nonhard = [d for d in corpus if d.amount > AMOUNT_CEILING_PAISE and d.decline_class != HARD]
-    risk_flagged_nonhard = [d for d in corpus if d.risk_flagged and d.decline_class != HARD]
-    ceiling_ids = {d.razorpay_payment_id for d in ceiling_blocked_nonhard}
-    risk_ids = {d.razorpay_payment_id for d in risk_flagged_nonhard}
-    union_ids = ceiling_ids | risk_ids
-    overlap_ids = ceiling_ids & risk_ids
+    print("--- deferred-bucket reconciliation (rules_only) ---")
+    # Three disjoint-by-construction sets, matching the gate's own checked order
+    # exactly (unknown before hard before risk before ceiling) -- each should equal
+    # its own guardrail's firing count exactly, three independent cross-checks, not one.
+    unknown_cases = [d for d in corpus if d.decline_class == UNKNOWN]
+    nonhard_nonunknown = [d for d in corpus if d.decline_class not in (HARD, UNKNOWN)]
+    risk_diverted = [d for d in nonhard_nonunknown if d.risk_flagged]
+    ceiling_diverted = [d for d in nonhard_nonunknown if not d.risk_flagged and d.amount > AMOUNT_CEILING_PAISE]
+
+    unknown_ids = {d.razorpay_payment_id for d in unknown_cases}
+    risk_ids = {d.razorpay_payment_id for d in risk_diverted}
+    ceiling_ids = {d.razorpay_payment_id for d in ceiling_diverted}
+    union_ids = unknown_ids | risk_ids | ceiling_ids
 
     rules_by_id = {r.case_id: r for r in results["rules_only"]}
-    would_defer_but_recovered_organically = sum(
-        1 for cid in union_ids if rules_by_id[cid].recovered
-    )
+    would_defer_but_recovered_organically = sum(1 for cid in union_ids if rules_by_id[cid].recovered)
     actually_deferred = sum(1 for cid in union_ids if rules_by_id[cid].outcome == "deferred_to_human_review")
-    unexpected = [
-        cid for cid in union_ids
-        if rules_by_id[cid].outcome not in ("recovered", "deferred_to_human_review")
-    ]
+    unexpected = [cid for cid in union_ids if rules_by_id[cid].outcome not in ("recovered", "deferred_to_human_review")]
 
-    print(f"  ceiling-blocked non-hard cases (amount > Rs{AMOUNT_CEILING_PAISE/100:,.0f}): {len(ceiling_ids)}")
-    print(f"  risk-flagged non-hard cases (independent risk_flag_rate_bps draw): {len(risk_ids)}")
-    print(f"  overlap (both ceiling-blocked AND risk-flagged -- risk_hard_stop wins, fires first): {len(overlap_ids)}")
-    print(f"  union (every case whose gate call routes to NEEDS_REVIEW at arrival): {len(union_ids)}")
-    print(f"  guardrail-count cross-check: risk_hard_stop + amount_ceiling_needs_signoff = "
-          f"{guardrail_counts.get('risk_hard_stop', 0) + guardrail_counts.get('amount_ceiling_needs_signoff', 0)} "
-          f"(must equal the union above -- each such case gets exactly one gate call, ever)")
-    print(f"  of those, resolved organically anyway before the outcome was read (route_to stays NEEDS_REVIEW,\n"
-          f"  historically true, but outcome == 'recovered' takes priority): {would_defer_but_recovered_organically}")
+    print(f"  unknown-classified cases (any amount, any risk): {len(unknown_ids)}"
+          f"  vs unclassifiable_decline_human_review count={guardrail_counts.get('unclassifiable_decline_human_review', 0)}")
+    print(f"  risk-diverted non-hard non-unknown cases: {len(risk_ids)}"
+          f"  vs risk_hard_stop count={guardrail_counts.get('risk_hard_stop', 0)}")
+    print(f"  ceiling-diverted non-hard non-unknown non-risk-flagged cases: {len(ceiling_ids)}"
+          f"  vs amount_ceiling_needs_signoff count={guardrail_counts.get('amount_ceiling_needs_signoff', 0)}")
+    print(f"  union (every case whose first gate call routes to NEEDS_REVIEW): {len(union_ids)}")
+    print(f"  of those, resolved organically anyway (outcome == recovered, not deferred): {would_defer_but_recovered_organically}")
     print(f"  actually reported outcome == 'deferred_to_human_review': {actually_deferred}")
     print(f"  arithmetic check: {len(union_ids)} - {would_defer_but_recovered_organically} = "
           f"{len(union_ids) - would_defer_but_recovered_organically}  (should equal actually_deferred above)")
     if unexpected:
         print(f"  UNEXPECTED: {len(unexpected)} case(s) in the union with neither outcome -- investigate: {unexpected[:5]}")
 
+    print("\n  --- ceiling: generative-model-expected vs observed-at-guardrail (both directions) ---")
+    corpus_params = _corpus_params()
+    median_paise = corpus_params["ticket_size_median_paise"]
+    sigma = corpus_params["ticket_size_sigma"]
+    n_cases = len(corpus)
+    z = (math.log(AMOUNT_CEILING_PAISE) - math.log(median_paise)) / sigma
+    p_over_ceiling_theoretical = 1 - NormalDist().cdf(z)
+    expected_over_ceiling = p_over_ceiling_theoretical * n_cases
+
+    observed_over_ceiling_any_class = sum(1 for d in corpus if d.amount > AMOUNT_CEILING_PAISE)
+
+    p_unknown = corpus_params["unknown_reason_rate_bps"] / 10_000
+    p_hard_of_nonsoft = corpus_params["hard_share_of_nonsoft"]
+    p_soft = corpus_params["soft_share"]
+    p_hard = p_hard_of_nonsoft * (1 - p_soft)
+    p_survives_unknown_and_hard = (1 - p_unknown) * (1 - p_hard)
+    p_risk = corpus_params["risk_flag_rate_bps"] / 10_000
+    p_survives_to_ceiling_check = p_survives_unknown_and_hard * (1 - p_risk)
+
+    p_final = p_over_ceiling_theoretical * p_survives_to_ceiling_check
+    expected_at_ceiling_guardrail = p_final * n_cases
+    binomial_sd = math.sqrt(n_cases * p_final * (1 - p_final))
+    observed_at_ceiling_guardrail = len(ceiling_ids)
+    gap_sd = abs(observed_at_ceiling_guardrail - expected_at_ceiling_guardrail) / binomial_sd
+
+    print(f"  theoretical P(amount > Rs{AMOUNT_CEILING_PAISE/100:,.0f}) from the log-normal CDF"
+          f" (median=Rs{median_paise/100:,.0f}, sigma={sigma}): {p_over_ceiling_theoretical:.4%}")
+    print(f"  expected over-ceiling count (any class), n={n_cases}: {expected_over_ceiling:.1f}")
+    print(f"  observed over-ceiling count (any class): {observed_over_ceiling_any_class}")
+    print(f"  guardrail-ordering survival: P(not unknown)={1-p_unknown:.4%} x P(not hard)={1-p_hard:.4%}"
+          f" x P(not risk-flagged)={1-p_risk:.4%} = {p_survives_to_ceiling_check:.4%}")
+    print(f"  expected count reaching amount_ceiling_needs_signoff: {expected_over_ceiling:.1f} x "
+          f"{p_survives_to_ceiling_check:.4%} = {expected_at_ceiling_guardrail:.2f}")
+    print(f"  binomial SD at n={n_cases}, p={p_final:.4%}: {binomial_sd:.2f}")
+    print(f"  observed amount_ceiling_needs_signoff count: {observed_at_ceiling_guardrail}")
+    print(f"  gap: {observed_at_ceiling_guardrail - expected_at_ceiling_guardrail:+.2f}  "
+          f"({gap_sd:.2f} binomial SD -- {'within' if gap_sd < 2 else 'OUTSIDE'} the usual 2-SD noise band)")
+
     total_value = sum(d.amount for d in corpus)
-    ceiling_value = sum(d.amount for d in ceiling_blocked_nonhard)
-    print(f"\n  ceiling-blocked count share: {len(ceiling_ids)/len(corpus):.2%} of {len(corpus)} cases")
-    print(f"  ceiling-blocked value share: {ceiling_value/total_value:.2%} of total corpus Rs value")
+    ceiling_value = sum(d.amount for d in ceiling_diverted)
+    print(f"\n  ceiling-diverted count share: {len(ceiling_ids)/len(corpus):.2%} of {len(corpus)} cases")
+    print(f"  ceiling-diverted value share: {ceiling_value/total_value:.2%} of total corpus Rs value")
 
 
 if __name__ == "__main__":
