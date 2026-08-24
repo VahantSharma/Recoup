@@ -48,7 +48,11 @@ class Policy(Protocol):
     name: str
 
     def propose(
-        self, case: ObservableCase, history: list[AttemptHistoryEntry], now: datetime,
+        self,
+        case: ObservableCase,
+        history: list[AttemptHistoryEntry],
+        now: datetime,
+        card_attempts_in_window: int,
     ) -> ActionProposal: ...
 
 
@@ -58,7 +62,10 @@ class ControlPolicy:
 
     name = "control"
 
-    def propose(self, case: ObservableCase, history: list[AttemptHistoryEntry], now: datetime) -> ActionProposal:
+    def propose(
+        self, case: ObservableCase, history: list[AttemptHistoryEntry], now: datetime,
+        card_attempts_in_window: int,
+    ) -> ActionProposal:
         return ActionProposal(action_type="no_action")
 
 
@@ -71,7 +78,10 @@ class BlindRetryPolicy:
 
     name = "blind_retry"
 
-    def propose(self, case: ObservableCase, history: list[AttemptHistoryEntry], now: datetime) -> ActionProposal:
+    def propose(
+        self, case: ObservableCase, history: list[AttemptHistoryEntry], now: datetime,
+        card_attempts_in_window: int,
+    ) -> ActionProposal:
         return ActionProposal(action_type="retry_payment_link", amount_paise=case.amount)
 
 
@@ -84,5 +94,8 @@ class RulesOnlyPolicy:
 
     name = "rules_only"
 
-    def propose(self, case: ObservableCase, history: list[AttemptHistoryEntry], now: datetime) -> ActionProposal:
+    def propose(
+        self, case: ObservableCase, history: list[AttemptHistoryEntry], now: datetime,
+        card_attempts_in_window: int,
+    ) -> ActionProposal:
         return ActionProposal(action_type="retry_payment_link", amount_paise=case.amount)

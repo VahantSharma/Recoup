@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from app.corpus_builder import build_corpus
+from app.corpus_builder import CaseDraft, build_corpus
 from app.harness.policies import BlindRetryPolicy, ControlPolicy, RulesOnlyPolicy
-from app.harness.run import run_ablation
+from app.harness.run import run_ablation, run_arm
 
 
 def _start() -> datetime:
@@ -237,3 +237,112 @@ def test_every_case_appears_exactly_once_per_arm():
     for arm, rows in results.items():
         assert len(rows) == len(corpus)
         assert len({r.case_id for r in rows}) == len(corpus)
+
+
+# --- Day 4: yield-at-scarcity plumbing (Policy.propose() gained card_attempts_in_window) ---
+
+def test_day1_through_3_policies_never_emit_yield_scarce_budget():
+    """Plumbing/non-regression check for the new Policy.propose() parameter --
+    Control/BlindRetry/RulesOnly ignore card_attempts_in_window entirely and never
+    return the new action_type, so this is a signature check, not a numeric re-run:
+    there is no formula those arms go through that could have drifted."""
+    results = _run(n=500)
+    for arm, rows in results.items():
+        assert all(r.final_status != "gave_up_yielded_scarce_budget" for r in rows), (
+            f"{arm} unexpectedly yielded -- only a Policy that reads "
+            f"card_attempts_in_window and opts in can ever produce this outcome"
+        )
+
+
+class _YieldWhenCardHasPriorAttemptPolicy:
+    """Test-only stub Policy: yields once this case's card already has at least one
+    attempt recorded in its rolling window, otherwise proposes the normal retry --
+    isolates run.py's yield-branch handling from any real weight/cutoff logic
+    (that's ModelPlaybookPolicy's job, tested separately)."""
+
+    name = "yield_stub"
+
+    def propose(self, case, history, now, card_attempts_in_window):
+        from app.gate import ActionProposal
+
+        if card_attempts_in_window >= 1:
+            return ActionProposal(action_type="yield_scarce_budget")
+        return ActionProposal(action_type="retry_payment_link", amount_paise=case.amount)
+
+
+def _draft(id_, card_id, simulated_at_offset_hours, decline_class="soft"):
+    start = _start()
+    return CaseDraft(
+        razorpay_payment_id=id_, razorpay_order_id=None, card_id=card_id,
+        amount=50_000, currency="INR", error_code=None, error_reason=None,
+        error_description=None, error_source=None, error_step=None,
+        decline_class=decline_class, decline_class_source="documented", risk_flagged=False,
+        simulated_at=start + timedelta(hours=simulated_at_offset_hours),
+    )
+
+
+def test_a_case_yields_once_its_shared_card_already_has_a_recorded_attempt():
+    """Two cases share one card. Case A arrives first (t=0h) as a 'soft' decline, sees
+    an empty window, and retries normally -- the gate approves, and the harness
+    records A's attempt against the shared card at t=24h (default retry_delay_hours).
+    Case B arrives at t=25h, after that recorded attempt, so its own first propose()
+    call sees card_attempts_in_window >= 1 and the stub policy chooses to yield.
+    B is built as a 'hard' decline specifically so it can NEVER organically resolve
+    before its t=25h ARRIVAL event (p_case_recoverable_bps['hard'] == 0,
+    unconditionally -- see test_hard_decline_cases_are_never_recovered_in_any_arm) --
+    that keeps this test deterministic instead of depending on B's random organic-
+    resolution draw landing after t=25h. B being 'hard' doesn't affect the yield
+    branch itself: yield_scarce_budget is decided and handled before gate.evaluate()
+    is ever called, so hard_decline_stop never gets a chance to matter here."""
+    corpus = [
+        _draft("pay_a", "card_shared", simulated_at_offset_hours=0, decline_class="soft"),
+        _draft("pay_b", "card_shared", simulated_at_offset_hours=25, decline_class="hard"),
+    ]
+    results = run_arm(
+        corpus, _YieldWhenCardHasPriorAttemptPolicy(), master_seed=42,
+        retry_delay_hours=24, max_case_lifetime_days=45,
+    )
+    by_id = {r.case_id: r for r in results}
+
+    a, b = by_id["pay_a"], by_id["pay_b"]
+    # A's own attempt_count isn't asserted here -- A is 'soft' so it can (rarely)
+    # organically resolve before its scheduled attempt fires, which would leave its
+    # own history empty without meaning anything about the yield mechanism. What
+    # matters for THIS test is that A's card slot got recorded, which the append to
+    # card_attempt_times happens unconditionally at gate-approval time (t=0h),
+    # independent of what A's own outcome later turns out to be -- proven indirectly
+    # and deterministically by B's yield below.
+    assert a.final_status != "gave_up_yielded_scarce_budget"
+
+    assert b.final_status == "gave_up_yielded_scarce_budget"
+    assert b.attempt_count == 0, "a yielding case must never have made an attempt"
+    assert b.outcome == "not_recovered"
+    assert b.route_to is None, "yielding is a policy choice, not an escalation to human review"
+
+
+def test_yielding_is_terminal_the_case_never_gets_a_later_attempt():
+    """Direct proof of the terminal property claimed in docs/assumptions.md and
+    docs/results.md: once a case yields, no future ACTION_DUE is ever scheduled for
+    it, even though its lifetime window (45 days) is far from exhausted. A single case
+    on an otherwise-empty card can't itself trigger card_attempts_in_window >= 1
+    (nothing else ever attempts on that card), so this uses a stub that always yields
+    to prove the mechanical consequence in isolation."""
+    class _AlwaysYieldPolicy:
+        name = "always_yield_stub"
+
+        def propose(self, case, history, now, card_attempts_in_window):
+            from app.gate import ActionProposal
+            return ActionProposal(action_type="yield_scarce_budget")
+
+    corpus = [_draft("pay_solo", "card_solo", simulated_at_offset_hours=0)]
+    results = run_arm(
+        corpus, _AlwaysYieldPolicy(), master_seed=42,
+        retry_delay_hours=24, max_case_lifetime_days=45,
+    )
+    r = results[0]
+    assert r.final_status == "gave_up_yielded_scarce_budget"
+    assert r.attempt_count == 0
+    # Confirms the case reached a genuinely terminal state, not just "no attempts
+    # yet": final_status is set exactly once via give_up()'s own idempotency guard,
+    # and no ACTION_DUE was ever scheduled for it -- there is no code path back to
+    # propose() for this case again within the run.

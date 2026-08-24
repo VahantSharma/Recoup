@@ -188,14 +188,32 @@ def _run_arm_impl(
             state.give_up("gave_up_lifetime_exceeded", now)
             continue
 
-        proposal = policy.propose(state.case, state.history, now)
-        if proposal.action_type != "retry_payment_link":
-            continue  # nothing more scheduled on this path; a pending ORGANIC event, if any, stays queued
-
         card_id = state.case.card_id or state.case.id  # every real corpus case has a
                                                           # card; fallback only for
                                                           # hand-built test cases
         window_count = _count_in_window(card_attempt_times.setdefault(card_id, []), now, 30)
+
+        # window_count is computed above propose() (not just before the gate call, as
+        # it used to be) so a Policy can see its own card's contention and choose to
+        # yield -- see ModelPlaybookPolicy. Reordering only, no new harness state: both
+        # lines depend only on (now, card_id), never on the policy's output.
+        proposal = policy.propose(state.case, state.history, now, window_count)
+        if proposal.action_type == "yield_scarce_budget":
+            # TERMINAL, same as every other give_up() path: this case's action path
+            # never gets another attempt. Not "try again later" -- a policy voluntarily
+            # forfeiting this case's entire remaining recovery probability, betting a
+            # higher-weight case reaches the same card's freed slot first. route_to
+            # stays None (a policy choice, not an escalation to human review), so this
+            # correctly reads as "not_recovered" in the three-way outcome split while
+            # final_status carries the distinct, auditable reason. See
+            # docs/assumptions.md's scarcity_remaining_budget_threshold /
+            # defer_priority_cutoff entries and docs/results.md's pre-registered note
+            # on what it means if the grid search selects never-yield.
+            state.give_up("gave_up_yielded_scarce_budget", now)
+            continue
+        if proposal.action_type != "retry_payment_link":
+            continue  # nothing more scheduled on this path; a pending ORGANIC event, if any, stays queued
+
         result = gate_evaluate(
             case=state.case,  # duck-typed: gate.evaluate reads .decline_class,
                                # .risk_flagged, .amount -- ObservableCase has all three,
