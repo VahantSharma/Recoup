@@ -626,52 +626,146 @@ ten-seed harness runs correctly end to end with zero network calls, per Amendmen
 This subsection will be rewritten with the real synthesized figures once Phase C
 lands.
 
-### Oracle headroom — what explains the null
+### Oracle headroom, audited, then decomposed — what explains the null
 
 `tuned_weights ≡ rules_only` exactly (previous subsection) means the grid search
-found a no-op, and — pre-registered here, before Phase C — **the model will almost
-certainly find the same no-op or worse**, per the grid-search-vs-model framing above.
-A null needs an explanation or it reads as "the model failed." This subsection
-supplies it, deterministically, before any provider is called.
+found a no-op. Before that null could be reported against an oracle ceiling, the
+ceiling itself was audited for fairness — a bound that secretly cheats is worse than
+no bound at all, since it would license exactly the wrong conclusion.
 
-**Construction** (`app/harness/oracle.py`, `OracleUpperBoundPolicy`): a measurement
-ceiling, not a submittable policy — it re-derives each case's own ground-truth
-recoverability (calling `app.simulator.outcomes.draw_ground_truth` itself, which no
-real `Policy` may do — see `tests/test_policy_input_boundary.py`) and uses that
-knowledge for exactly one decision: never spend a shared card's scarce rolling-30-day
-attempt budget on a case that can never recover. Otherwise it behaves exactly like
-`RulesOnlyPolicy` — identical gate, identical retry-until-give-up mechanics. This
-isolates the value of *perfect recoverability information* specifically — the same
-lever the yield-at-scarcity mechanism tries to approximate blindly via a per-class
-weight/cutoff heuristic instead of true per-case knowledge. It is *a* ceiling, not the
-global optimum (a fancier oracle could also sequence *which* recoverable case gets a
-contended slot first); scoped honestly as such in its own module docstring.
+#### Task A — is the oracle a fair bound? Audited explicitly, PASS/FAIL, not asserted collectively
 
-**Result — real headroom exists (the "Large" branch):**
+| # | Claim | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Same rolling-30-day per-card budget as `rules_only` | **PASS** | `OracleUpperBoundPolicy` (`app/harness/oracle.py`) is run through the unmodified `_run_arm_impl` (`app/harness/run.py:199-247`) — `window_count`/`card_attempt_times` are computed identically for every arm; `grep`-confirmed zero references to "oracle" anywhere in `run.py`, `gate.py`, or `policies.py` — no special-casing exists to find. |
+| 2 | Passes through the SAME gate (hard-decline, risk hard-stop, ceiling, break-even; "advice-code stop" is not a separately-named guardrail in `gate.py` — it's subsumed into `hard_decline_stop` via taxonomy classification, confirmed by reading `gate.py`'s actual 8-guardrail list) | **PASS, with the mechanical nuance stated precisely** | For a recoverable case, `oracle.py:67` returns the byte-identical `retry_payment_link` proposal `RulesOnlyPolicy` would, so it reaches `gate_evaluate()` (`run.py:225`) identically — trivially true, same code path. For an unrecoverable case, `oracle.py:66` returns `no_action`, which exits before the gate is ever called (`run.py:222`) — same as `ControlPolicy`'s behavior for every case. This is not a bypass: a hard-decline case has `is_recoverable=False` unconditionally (`p_case_recoverable_bps['hard']=0`), so under `rules_only` it reaches the gate and is rejected by `hard_decline_stop`; under oracle it's never proposed at all. Both paths produce the identical real-world consequence (zero attempts, case does not recover via action) and identical side effects (neither path appends to `card_attempt_times`, since only `gate`-*approved* proposals do — `run.py:247`) — the mechanical route differs, the outcome and the shared resource's state do not. |
+| 3 | Measured under CRN, same seeds, same corpus | **PASS, gap in auditability found and fixed** | The original `scripts/run_oracle_headroom.py` relied on `run_arm`'s implicit `use_common_random_numbers=True` default rather than passing it explicitly or printing it in the manifest — functionally correct (the default *is* the fix) but not self-evidently so from the artifact alone, unlike every other Day 4 script's explicit `USE_COMMON_RANDOM_NUMBERS` line. Fixed: the replacement script (`scripts/run_bound_decomposition.py`) passes `use_common_random_numbers=True` explicitly to every `run_arm` call and prints it in the manifest. Re-run after the fix (below); the number did not change, as expected, since the default was already correct — this was an auditability gap, not a correctness bug. |
+| 4 | Ground truth used ONLY for allocation ordering — no extra attempts, no skipped reconciliation, no acting where the gate would refuse | **PASS** | Attempt *success* still goes through the identical `attempt_succeeds()` call (`run.py:174-179`) for every arm — oracle has no path to a guaranteed success. `reconciled_payment={"status": "failed"}` (`run.py:230`) is hardcoded harness-wide, not policy-controllable — no arm, oracle included, can skip it. Gate rejections are handled identically (§2). Independently tested, not just argued: `test_oracle_never_attempts_a_provably_unrecoverable_case` and `test_oracle_recovered_set_is_a_superset_of_rules_onlys` (`tests/test_oracle_upper_bound.py`). |
+
+All four pass. The oracle is a fair bound on the SAME compliant problem `rules_only`
+solves — differing only in whether it knows a case's true recoverability before
+deciding to spend a shared card's scarce budget on it.
+
+#### Task A2 — the oracle alone is a LOOSE bound; decomposed into two gaps with distinct meanings
+
+Stated plainly, per the audit's own honesty standard: the oracle reads the
+simulator's ground truth, which no production policy can ever do. `oracle -
+rules_only` is therefore the value of **perfect information**, not the value any real
+system could achieve — a loose upper bound. Closed with a second, tighter bound:
+`ObservableOptimalPolicy` (`app/harness/observable_optimal.py`) — an analysis arm,
+**not submittable**, imports nothing from `app.simulator` (confirmed structurally,
+`tests/test_observable_optimal.py::test_never_touches_app_simulator`), and uses only
+features a real system has at decision time: `decline_class`, ticket size
+(`case.amount`), attempt number (`len(history)+1`), `card_attempts_in_window`, and
+time since failure (`now - case.simulated_at`) — all already present in `Policy.
+propose()`'s existing signature, no new plumbing needed. Its six parameters (the
+original weight-ratio/scarcity-threshold/defer-cutoff plus a ticket-size bonus, a
+per-attempt penalty, a per-day staleness penalty) are fit by deterministic grid search
+(600 points, a deliberately bounded — not exhaustive — extension of the original
+75-point grid) against `PROPOSAL_SEED=42`, same `net_value_paise` objective, same
+"never touch a held-out seed while fitting" discipline
+(`test_never_touches_a_held_out_seed`). `PlaybookProposal` and the providers are
+**not** touched by this — frozen, per instruction, since the abstention rule is
+already pre-registered against that exact schema.
 
 ```
-cd backend && python -m scripts.run_oracle_headroom
-PROPOSAL_SEED=42, n=1200(+1): recovery rate oracle=61.199% vs rules_only=52.206%
-  rate_lift = +0.0899   95% CI [+0.0749, +0.1057]   (clearly excludes zero)
-  net_value: oracle=Rs 9,23,089.03  rules_only=Rs 8,14,685.52  gap=Rs 1,08,403.51
-Across all 10 HELD_OUT_SEEDS: rate_lift mean=+0.0780  stdev=0.0057  min=+0.0666  max=+0.0858
-  (every seed's 95% CI excludes zero; tightest spread of any lift figure reported in this file)
+cd backend && python -m scripts.run_bound_decomposition
+winner: weight_ratio=0.33  scarcity_threshold=2  defer_cutoff=1.0
+        ticket_size_bonus=0.5  attempt_penalty=0.0  staleness_penalty_per_day=0.05
 ```
 
-**Reading.** The gap is large, consistent (never near zero, never crossing into noise,
-across 10 independent seeds plus the in-sample point — tighter than almost any other
-lift distribution reported in this document), and robust. This is the honest answer,
-and it names the future work precisely: **the null is not proof that nothing was
-there to find — it's proof that the playbook space this pass searched (a per-class
-scalar weight, one global scarcity threshold, one global cutoff — a class-level
-heuristic) cannot express the decision that actually captures the headroom, which is
-inherently per-case.** Neither the grid search nor a synthesized playbook reading only
-aggregate statistics could ever reach this ceiling through this mechanism, by
-construction — not a failure of either search method, a structural limit of the
-representation. Closing this gap for real would need either genuinely case-level
-signals threaded into the playbook (a materially larger scope than this pass took on)
-or a different mechanism entirely. Reported before Phase C, so the model arm's result
-— whatever it turns out to be — is read against this ceiling, not in a vacuum.
+**Three-way result, PROPOSAL_SEED=42 (n=1200+1):**
+
+| Arm | Recovery rate | Net value |
+|---|---|---|
+| `rules_only` | 52.206% | ₹8,14,685.52 |
+| `observable_optimal` (analysis only) | 50.458% | ₹8,33,899.54 |
+| `oracle_upper_bound` (analysis only) | 61.199% | ₹9,23,089.03 |
+
+**GAP 1 — `observable_optimal − rules_only` = value left on the table using
+information already available (real, but not the metric you'd guess):**
+rate_lift **−0.0175** (95% CI [−0.0308, −0.0050]) — recovers *fewer* cases — but gross
+recovered-amount lift **+₹19,191.94** (95% CI [₹120.30, ₹41,093.44]) and net value
+**+₹19,214.02**, because it recovers **fewer, bigger** tickets at **fewer total
+attempts**. Diagnosed directly, not inferred: at this seed, `observable_optimal`
+recovers 606 cases (avg ticket ₹1,376) at 1,480 attempts and 296 explicit yields;
+`rules_only` recovers 627 cases (avg ticket ₹1,300) at 1,672 attempts and zero yields.
+It was fit to maximize *net value* (same objective as the grid search, not recovery
+rate), and it does — by reallocating scarce card slots away from smaller, staler,
+marginal cases toward higher-ticket ones. **Held out across all 10 seeds: the net-
+value-relevant gross-amount lift is positive in 9/10 seeds** (mean +₹20,255.88) — a
+real, generalizing, economically coherent tradeoff, not an in-sample fitting artifact.
+This is genuine headroom `rules_only` leaves on the table using information it already
+has, and it names exactly what a v2 schema would need to key on if this were ever
+pursued: ticket size and case staleness, neither of which `PlaybookProposal` currently
+carries.
+
+**GAP 2 — `oracle − observable_optimal` = the irreducible gap (information no real
+system has, and cannot get):**
+rate_lift **+0.1074** (95% CI [+0.0899, +0.1257]) in-sample, **+0.0808 to +0.1082
+across all 10 held-out seeds** (mean +0.0946, stdev 0.0084) — never near zero, never
+crossing into noise, larger and at least as tight as the oracle-vs-`rules_only` gap
+reported before this decomposition existed. Reading: **most of the oracle's headroom
+is NOT reachable through better use of observable signals** — it is specifically the
+value of knowing, with certainty, that a case can never recover, which no amount of
+clever feature engineering on `decline_class`/ticket size/attempt history/staleness
+can substitute for. This is the honest ceiling on anything built on the
+yield-at-scarcity mechanism, model or otherwise.
+
+**What this decomposition licenses, precisely:** the Day 4 null is **explained, not
+excused**. `observable_optimal ≉ rules_only` (a real gap exists on available
+features) — so the frozen 3-parameter playbook was too narrow to reach even the
+reachable headroom, and the mechanism (a single global scarcity threshold + a
+per-class weight, no ticket-size or staleness signal) is the specific, named reason
+why. Simultaneously, most of the oracle's larger headroom is provably unreachable by
+any observable-feature policy at all — so a hypothetical model arm's null result
+would not, by itself, indict the model: the ceiling it was ever able to reach is
+`observable_optimal`, materially below `oracle`, for structural reasons that have
+nothing to do with model quality.
+
+### Provider-agnostic, tested at the exact place it breaks
+
+Every "provider-agnostic" architecture makes this claim; few actually test it against
+two real SDKs with genuinely different structured-output constraints. Building Day
+4's providers found a real one — and, per the same audit discipline as Task A, the
+fix is checked here for which of two possible forms it took, because one of them
+silently corrupts the bake-off before a single call is made.
+
+**The incompatibility, confirmed live, not assumed:** Groq's strict `json_schema`
+mode requires `additionalProperties:false` on every object in the schema (a live 400
+during SDK introspection: *"`additionalProperties:false` must be set on every
+object"*) — fixed via `model_config = ConfigDict(extra="forbid")` on
+`AllocationRule`/`PlaybookProposal`/`Playbook`. But passing that same schema straight
+to Gemini's `response_schema` then fails *inside the SDK itself*, before any network
+call: Gemini's internal `types.Schema` supports only a subset of JSON Schema —
+confirmed by listing `types.Schema.model_fields` directly — with no
+`additionalProperties` key and no `exclusiveMinimum`/`exclusiveMaximum` (so
+`Field(gt=0)`, needed for both providers' positivity constraint, breaks it too). A
+schema that satisfies Groq's strict-mode requirement is therefore, as constructed,
+*rejected by Gemini's own schema validator*. Genuinely cross-provider, not a
+one-provider quirk.
+
+**Which fix, checked explicitly (per Task B):** the CORRECT form — the WIRE schema
+sent to Gemini is relaxed (`gemini_provider.py`'s `_gemini_safe_schema()` strips
+`additionalProperties` and rewrites `exclusiveMinimum/Maximum` to inclusive
+`minimum/maximum` in a per-request copy only), but **the response is validated
+through the full, original, unrelaxed `PlaybookProposal` class**
+(`schema.model_validate_json(response.text)`) — `gt=0` and `extra="forbid"` are still
+enforced on every parsed result from both providers, identically. Confirmed by
+reading `gemini_provider.py`'s `complete()`: the sanitized dict is used only inside
+`types.GenerateContentConfig(response_schema=...)`; parsing goes through `schema`
+(the caller's original class), never the sanitized dict. **Validation strength is
+identical across providers; only the transport representation differs** — the bake-
+off's schema-validation-rate metric compares both providers against the same bar. The
+WRONG form (loosening the model itself) was not what happened, checked directly
+against the diff, not asserted from memory.
+
+One consequence worth naming: because Gemini's own schema declaration never states
+`gt=0`, Gemini could in principle emit `priority_weight=0` and have it rejected only
+at the post-hoc validation step (counted as a schema-validation failure in the
+bake-off), whereas Groq's stricter wire contract might reject the same value before
+ever generating a response. Both outcomes are still correctly counted as "not
+schema-valid" for that generation — the enforcement point differs, the bar does not.
 
 ### Day 3 headline — CRN recheck (addendum; does not replace Day 3's committed section above)
 
