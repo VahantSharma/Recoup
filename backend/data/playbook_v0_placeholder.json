@@ -1,0 +1,22 @@
+{
+  "version": "v0-placeholder",
+  "synthesized_from_seed": 42,
+  "provider": "placeholder",
+  "model_id": "hand-written-not-model-generated",
+  "rules": [
+    {
+      "decline_class": "soft",
+      "priority_weight": 1.5,
+      "rationale": "Placeholder only -- not model-generated or grid-searched. Soft declines are the main recoverable bucket per CLAUDE.md, so this plausible-by-eye guess weights it above technical, purely to exercise the plumbing end to end before any real synthesis call."
+    },
+    {
+      "decline_class": "technical",
+      "priority_weight": 1.0,
+      "rationale": "Placeholder only -- not model-generated or grid-searched. Neutral baseline weight while the deterministic core (schema, policy, grid search, structural tests, ablation script) is built and greened against this file."
+    }
+  ],
+  "scarcity_remaining_budget_threshold": 1,
+  "defer_priority_cutoff": 1.2,
+  "abstained": false,
+  "abstain_reason": null
+}
