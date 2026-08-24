@@ -626,6 +626,53 @@ ten-seed harness runs correctly end to end with zero network calls, per Amendmen
 This subsection will be rewritten with the real synthesized figures once Phase C
 lands.
 
+### Oracle headroom — what explains the null
+
+`tuned_weights ≡ rules_only` exactly (previous subsection) means the grid search
+found a no-op, and — pre-registered here, before Phase C — **the model will almost
+certainly find the same no-op or worse**, per the grid-search-vs-model framing above.
+A null needs an explanation or it reads as "the model failed." This subsection
+supplies it, deterministically, before any provider is called.
+
+**Construction** (`app/harness/oracle.py`, `OracleUpperBoundPolicy`): a measurement
+ceiling, not a submittable policy — it re-derives each case's own ground-truth
+recoverability (calling `app.simulator.outcomes.draw_ground_truth` itself, which no
+real `Policy` may do — see `tests/test_policy_input_boundary.py`) and uses that
+knowledge for exactly one decision: never spend a shared card's scarce rolling-30-day
+attempt budget on a case that can never recover. Otherwise it behaves exactly like
+`RulesOnlyPolicy` — identical gate, identical retry-until-give-up mechanics. This
+isolates the value of *perfect recoverability information* specifically — the same
+lever the yield-at-scarcity mechanism tries to approximate blindly via a per-class
+weight/cutoff heuristic instead of true per-case knowledge. It is *a* ceiling, not the
+global optimum (a fancier oracle could also sequence *which* recoverable case gets a
+contended slot first); scoped honestly as such in its own module docstring.
+
+**Result — real headroom exists (the "Large" branch):**
+
+```
+cd backend && python -m scripts.run_oracle_headroom
+PROPOSAL_SEED=42, n=1200(+1): recovery rate oracle=61.199% vs rules_only=52.206%
+  rate_lift = +0.0899   95% CI [+0.0749, +0.1057]   (clearly excludes zero)
+  net_value: oracle=Rs 9,23,089.03  rules_only=Rs 8,14,685.52  gap=Rs 1,08,403.51
+Across all 10 HELD_OUT_SEEDS: rate_lift mean=+0.0780  stdev=0.0057  min=+0.0666  max=+0.0858
+  (every seed's 95% CI excludes zero; tightest spread of any lift figure reported in this file)
+```
+
+**Reading.** The gap is large, consistent (never near zero, never crossing into noise,
+across 10 independent seeds plus the in-sample point — tighter than almost any other
+lift distribution reported in this document), and robust. This is the honest answer,
+and it names the future work precisely: **the null is not proof that nothing was
+there to find — it's proof that the playbook space this pass searched (a per-class
+scalar weight, one global scarcity threshold, one global cutoff — a class-level
+heuristic) cannot express the decision that actually captures the headroom, which is
+inherently per-case.** Neither the grid search nor a synthesized playbook reading only
+aggregate statistics could ever reach this ceiling through this mechanism, by
+construction — not a failure of either search method, a structural limit of the
+representation. Closing this gap for real would need either genuinely case-level
+signals threaded into the playbook (a materially larger scope than this pass took on)
+or a different mechanism entirely. Reported before Phase C, so the model arm's result
+— whatever it turns out to be — is read against this ceiling, not in a vacuum.
+
 ### Day 3 headline — CRN recheck (addendum; does not replace Day 3's committed section above)
 
 Per the fix's scope: `## Day 3`'s section above is left completely untouched — same
@@ -690,6 +737,55 @@ trajectories, so the fix's variance reduction here is real but partial — unlik
 `tuned_weights`-vs-`rules_only` case above, where near-total behavioral overlap made
 the reduction total). Day 3's own committed section above is left as originally
 published; this addendum is the correction record, not a replacement.
+
+### Day 3 sensitivity sweep — CRN recheck (addendum; does not replace Day 3's committed sweep)
+
+Load-bearing beyond documentation: Day 5's assumption-slider demo is built on these
+numbers, so they had to be checked under correct pairing before being trusted for
+that. New script (`scripts/run_day3_sweep_crn_recheck.py`), Day 3's own
+`scripts/run_day3_sweep.py` and its committed sweep untouched. Same 15 parameters,
+same `base_seed=42`, same OAT (5 pts/param, n=500/pt) and joint (500 draws, n=300/draw)
+sizes, both modes, real output.
+
+```
+git_sha (this recheck) = 1b4726efda97405be4ea27e9c65665964c530cd2
+```
+
+**Ranking-flip question, answered: no flip anywhere, in either mode.**
+`rules_only` beat `control` at all 75 OAT points and all 500/500 joint draws, under
+CRN and under the pre-fix seeding alike. The qualitative headline claim — the ranking
+holds across the full declared parameter space — is unchanged by the fix.
+
+**Flip-point question, answered: the near-tie moves, but it was already flagged as a
+near-tie, not resolved into a real flip.** Day 3's original spread ranking called
+`card_reuse_factor` (0.2555) and `organic_recovery_rate_bps` (0.2495) "effectively
+tied for most consequential... a 0.006 gap, well within what a different seed could
+flip" — and that is exactly what happened:
+
+| Rank | Pre-fix (committed) | CRN (this recheck) |
+|---|---|---|
+| 1 | `card_reuse_factor` (0.2555) | `organic_recovery_rate_bps` (0.2735) |
+| 2 | `organic_recovery_rate_bps` (0.2495) | `card_reuse_factor` (0.2555) |
+| 3 | `sim_true_recovery_rate_bps` (0.1856) | `p_case_recoverable_bps_soft` (0.1816) |
+
+The two swap order; nothing else moves meaningfully in the top ranks. This is the
+predicted behavior of a genuine near-tie under a different (corrected) random stream,
+not a new finding — the original register's own caveat called this outcome in
+advance. **If Day 5's sliders demo names a single "most consequential parameter,"
+it should say `organic_recovery_rate_bps` and `card_reuse_factor` are tied, not name
+either one alone** — true under both the old and the new numbers, more clearly so now.
+
+**Compliance break-even distribution: essentially unchanged.**
+
+| | Pre-fix (committed) | CRN (this recheck) |
+|---|---|---|
+| Median | ₹41.14 | ₹41.03 |
+| 5th / 95th percentile | ₹5.34 / ₹224.20 | ₹5.77 / ₹224.82 |
+| Fraction below Mastercard month-1 (₹95.70) | 80.2% | 80.0% |
+
+No conclusion in Day 3's compliance-economics section changes: compliance still pays
+for itself under Mastercard's schedule in the strong majority of the plausible
+parameter space, rarely under Visa's lighter one.
 
 ### Bake-off, synthesis, real `rules_plus_model` result
 

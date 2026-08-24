@@ -156,12 +156,15 @@ class SweepResult:
     break_even_penalty_paise: float | None
 
 
-def _run_point(n: int, seed: int, corpus_kw: dict, ablation_kw: dict, policy_ov: dict, sim_ov: dict) -> SweepResult:
+def _run_point(
+    n: int, seed: int, corpus_kw: dict, ablation_kw: dict, policy_ov: dict, sim_ov: dict,
+    use_common_random_numbers: bool = True,
+) -> SweepResult:
     with _patched(policy_params, **policy_ov), _patched(sim_params, **sim_ov):
         corpus = build_corpus(n=n, seed=seed, batch_simulated_start_at=BATCH_START, **corpus_kw)
         results = run_ablation(
             corpus, [ControlPolicy(), RulesOnlyPolicy(), BlindRetryPolicy()],
-            master_seed=seed, **ablation_kw,
+            master_seed=seed, use_common_random_numbers=use_common_random_numbers, **ablation_kw,
         )
         cost = policy_params.COST_PER_CONTACT_ATTEMPT_MILLI_PAISE  # read while still
                                                                       # patched, so a
@@ -192,10 +195,14 @@ def _run_point(n: int, seed: int, corpus_kw: dict, ablation_kw: dict, policy_ov:
     )
 
 
-def oat_sweep(n: int = 500, base_seed: int = 42) -> list[dict]:
+def oat_sweep(n: int = 500, base_seed: int = 42, use_common_random_numbers: bool = True) -> list[dict]:
     """One-at-a-time: for each declared parameter, 5 points across its range (lo,
     25%, default, 75%, hi), everything else held at default. Cheap, produces the
-    readable table showing which parameter moves the ranking most."""
+    readable table showing which parameter moves the ranking most.
+
+    use_common_random_numbers=False reproduces the pre-fix (arm-keyed) seeding --
+    kept only for the CRN-vs-pre-fix comparison in docs/results.md; every reported
+    result uses the True default."""
     rows: list[dict] = []
     for name, spec in PARAM_SPECS.items():
         lo, hi, default = spec["lo"], spec["hi"], spec["default"]
@@ -205,7 +212,7 @@ def oat_sweep(n: int = 500, base_seed: int = 42) -> list[dict]:
             params = {"param": name, "value": value}
             seed = seed_for_draw(base_seed, params)
             overrides = _overrides_for(name, value)
-            result = _run_point(n, seed, *overrides)
+            result = _run_point(n, seed, *overrides, use_common_random_numbers=use_common_random_numbers)
             rows.append({
                 "param": name, "value": value, "seed": seed, "param_hash": param_hash(params),
                 "rate_lift_rules_vs_control": result.rate_lift_rules_vs_control,
@@ -220,11 +227,17 @@ def oat_sweep(n: int = 500, base_seed: int = 42) -> list[dict]:
     return rows
 
 
-def joint_random_sweep(n_draws: int = 500, n_cases: int = 300, base_seed: int = 42) -> list[dict]:
+def joint_random_sweep(
+    n_draws: int = 500, n_cases: int = 300, base_seed: int = 42, use_common_random_numbers: bool = True,
+) -> list[dict]:
     """Draws n_draws parameter vectors uniformly from the full declared space
     (every swept parameter simultaneously, independently) and re-runs the ablation
     for each — reports the fraction where the ranking holds across the entire
-    plausible assumption space at once, not one parameter at a time."""
+    plausible assumption space at once, not one parameter at a time.
+
+    use_common_random_numbers=False reproduces the pre-fix (arm-keyed) seeding --
+    kept only for the CRN-vs-pre-fix comparison in docs/results.md; every reported
+    result uses the True default."""
     rng = random.Random(base_seed)
     rows: list[dict] = []
     for i in range(n_draws):
@@ -236,7 +249,7 @@ def joint_random_sweep(n_draws: int = 500, n_cases: int = 300, base_seed: int = 
         params_for_hash = {"draw_index": i, **draw}
         seed = seed_for_draw(base_seed, params_for_hash)
         overrides = _merge_overrides(*(_overrides_for(name, value) for name, value in draw.items()))
-        result = _run_point(n_cases, seed, *overrides)
+        result = _run_point(n_cases, seed, *overrides, use_common_random_numbers=use_common_random_numbers)
         rows.append({
             "draw_index": i, "seed": seed, "param_hash": param_hash(params_for_hash),
             **draw,
