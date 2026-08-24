@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.model.playbook_schema import AllocationRule, Playbook
+from app.model.playbook_schema import AllocationRule, Playbook, PlaybookProposal
 
 
 def _rule(decline_class, weight=1.0, rationale="because"):
@@ -86,3 +86,25 @@ def test_abstained_playbook_can_carry_no_rules_and_a_reason():
 def test_abstained_false_does_not_require_a_reason():
     pb = _playbook(abstained=False, abstain_reason=None)
     assert pb.abstain_reason is None
+
+
+def _assert_additional_properties_false_everywhere(schema: dict):
+    """Groq's strict json_schema mode requires additionalProperties:false on EVERY
+    object in the schema, confirmed against the real API during Day 4 SDK
+    introspection (a schema missing it anywhere is a 400, not a warning)."""
+    if schema.get("type") == "object" or "properties" in schema:
+        assert schema.get("additionalProperties") is False, f"missing additionalProperties:false: {schema}"
+    for value in schema.get("properties", {}).values():
+        _assert_additional_properties_false_everywhere(value)
+    if "items" in schema:
+        _assert_additional_properties_false_everywhere(schema["items"])
+    for definition in schema.get("$defs", {}).values():
+        _assert_additional_properties_false_everywhere(definition)
+
+
+def test_playbook_proposal_schema_is_groq_strict_mode_compatible():
+    _assert_additional_properties_false_everywhere(PlaybookProposal.model_json_schema())
+
+
+def test_playbook_schema_is_groq_strict_mode_compatible():
+    _assert_additional_properties_false_everywhere(Playbook.model_json_schema())

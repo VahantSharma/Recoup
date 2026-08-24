@@ -17,10 +17,17 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AllocationRule(BaseModel):
+    # extra="forbid" -> additionalProperties:false in the generated JSON schema --
+    # required by Groq's strict json_schema mode ("must be set on every object",
+    # confirmed against the real API during Day 4 SDK introspection), harmless for
+    # Gemini's response_schema either way. Applies to every nested object in this
+    # file, not just the top-level one.
+    model_config = ConfigDict(extra="forbid")
+
     # 'hard' never appears -- by taxonomy, a hard decline is never retried, so it has
     # no allocation weight to assign. None = applies to both remaining classes.
     decline_class: Literal["soft", "technical"] | None
@@ -28,7 +35,23 @@ class AllocationRule(BaseModel):
     rationale: str = Field(min_length=1, max_length=280)
 
 
+class PlaybookProposal(BaseModel):
+    """What we actually ask a provider to generate -- exactly the four free numbers
+    (as rules + two scalars) plus rationale, nothing else. This is the response_schema
+    passed to both providers. Metadata (version, synthesized_from_seed, provider,
+    model_id, abstained, abstain_reason) is filled in by our own code after the call
+    -- never asked of the model, which has no reliable way to self-report any of it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    rules: list[AllocationRule]
+    scarcity_remaining_budget_threshold: int = Field(ge=0)
+    defer_priority_cutoff: float = Field(gt=0)
+
+
 class Playbook(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     version: str
     synthesized_from_seed: int
     provider: str  # "gemini" | "groq" | "grid_search" | "placeholder"
