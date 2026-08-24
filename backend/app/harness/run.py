@@ -119,11 +119,18 @@ def _run_arm_impl(
     retry_delay_hours: int,
     max_case_lifetime_days: int,
     guardrail_counts: dict[str, int] | None,
+    use_common_random_numbers: bool = True,
 ) -> list[CaseArmResult]:
     """Runs one policy over the full corpus. Ground truth is drawn fresh here from the
     same (master_seed, case_id) every time this is called for the same case — that's
     what makes it identical across arms without needing to pass it in explicitly (the
     paired design's whole point).
+
+    use_common_random_numbers: forwarded to every attempt_succeeds() call below. True
+    (default) is the fixed, correct paired design -- see that function's docstring and
+    docs/results.md's "Common random numbers" section for the bug this fixed. False
+    reproduces the original, unpaired-in-effect behavior and exists only for
+    tests/test_null_arm_lift_is_zero.py to measure the old noise floor directly.
 
     guardrail_counts, if given, is mutated in place: every gate.evaluate() call's
     GateResult.reason (one of the 8 guardrail names, or "permitted") is tallied there.
@@ -168,6 +175,7 @@ def _run_arm_impl(
                 case_id=state.case.id, arm=policy.name, attempt_number=attempt_number,
                 decline_class=state.case.decline_class, master_seed=master_seed,
                 ground_truth=state.ground_truth,
+                use_common_random_numbers=use_common_random_numbers,
             )
             state.history.append(AttemptHistoryEntry(
                 attempt_number=attempt_number, action_type="retry_payment_link",
@@ -259,8 +267,12 @@ def run_arm(
     master_seed: int,
     retry_delay_hours: int,
     max_case_lifetime_days: int,
+    use_common_random_numbers: bool = True,
 ) -> list[CaseArmResult]:
-    return _run_arm_impl(corpus, policy, master_seed, retry_delay_hours, max_case_lifetime_days, guardrail_counts=None)
+    return _run_arm_impl(
+        corpus, policy, master_seed, retry_delay_hours, max_case_lifetime_days,
+        guardrail_counts=None, use_common_random_numbers=use_common_random_numbers,
+    )
 
 
 def run_arm_with_guardrail_counts(
@@ -269,6 +281,7 @@ def run_arm_with_guardrail_counts(
     master_seed: int,
     retry_delay_hours: int,
     max_case_lifetime_days: int,
+    use_common_random_numbers: bool = True,
 ) -> tuple[list[CaseArmResult], dict[str, int]]:
     """Same as run_arm, plus a count of how many times each of the gate's 8 guardrail
     reasons (and "permitted") fired across every gate.evaluate() call this arm made --
@@ -277,7 +290,10 @@ def run_arm_with_guardrail_counts(
     blind_retry calls it audit_only and ignores the verdict, so its counts describe
     what *would* have been enforced, not what was)."""
     counts: dict[str, int] = {}
-    results = _run_arm_impl(corpus, policy, master_seed, retry_delay_hours, max_case_lifetime_days, guardrail_counts=counts)
+    results = _run_arm_impl(
+        corpus, policy, master_seed, retry_delay_hours, max_case_lifetime_days,
+        guardrail_counts=counts, use_common_random_numbers=use_common_random_numbers,
+    )
     return results, counts
 
 
@@ -287,12 +303,18 @@ def run_ablation(
     master_seed: int,
     retry_delay_hours: int = 24,
     max_case_lifetime_days: int = 45,
+    use_common_random_numbers: bool = True,
 ) -> dict[str, list[CaseArmResult]]:
     """Every arm runs over the *same* corpus with the *same* master_seed — the paired
     design. Each case's ground truth (drawn inside run_arm from (master_seed,
-    case_id), independent of arm) is therefore identical across arms; only what each
-    policy does with it differs."""
+    case_id), independent of arm) is therefore identical across arms; and, as of the
+    common-random-numbers fix (see app.simulator.outcomes.attempt_succeeds), so is
+    every per-attempt success draw a case shares across arms that actually reach it --
+    only what each policy DOES (whether it attempts, how many times, when) differs."""
     return {
-        policy.name: run_arm(corpus, policy, master_seed, retry_delay_hours, max_case_lifetime_days)
+        policy.name: run_arm(
+            corpus, policy, master_seed, retry_delay_hours, max_case_lifetime_days,
+            use_common_random_numbers=use_common_random_numbers,
+        )
         for policy in policies
     }

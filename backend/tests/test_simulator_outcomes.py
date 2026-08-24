@@ -70,16 +70,38 @@ def test_ground_truth_does_not_depend_on_arm():
     assert "arm" not in inspect.signature(draw_ground_truth).parameters
 
 
-def test_attempt_success_can_differ_by_arm_for_the_same_case_and_attempt_number():
+def test_attempt_success_is_arm_independent_under_common_random_numbers():
+    """The fixed, default behavior (use_common_random_numbers=True): the whole point
+    of common random numbers is that identical decisions give identical outcomes
+    across arms, so the RNG stream must NOT vary with `arm` at all. This replaces
+    test_attempt_success_can_differ_by_arm_for_the_same_case_and_attempt_number, which
+    asserted the bug (arm-dependence) as intended behavior -- see
+    docs/results.md's "Common random numbers" section."""
     gt = draw_ground_truth("case_shared", "soft", 42, _start(), 45)
     assert gt.is_recoverable  # otherwise this test can't distinguish anything
     results_by_arm = {
         arm: [attempt_succeeds("case_shared", arm, n, "soft", 42, gt) for n in range(1, 30)]
         for arm in ("blind_retry", "rules_only", "rules_plus_model")
     }
-    # Not asserting a specific inequality (could coincidentally match) — asserting the
-    # three sequences aren't literally the same list object's content on every arm,
-    # i.e. the RNG stream genuinely varies with `arm`.
+    assert len({tuple(v) for v in results_by_arm.values()}) == 1, (
+        "under common random numbers, the same case at the same attempt number must "
+        "succeed or fail identically regardless of which arm is asking"
+    )
+
+
+def test_attempt_success_can_differ_by_arm_when_common_random_numbers_disabled():
+    """The pre-fix behavior, kept runnable ONLY to measure the old harness's noise
+    floor directly (tests/test_null_arm_lift_is_zero.py) -- nothing in production
+    code should ever pass use_common_random_numbers=False."""
+    gt = draw_ground_truth("case_shared", "soft", 42, _start(), 45)
+    assert gt.is_recoverable
+    results_by_arm = {
+        arm: [
+            attempt_succeeds("case_shared", arm, n, "soft", 42, gt, use_common_random_numbers=False)
+            for n in range(1, 30)
+        ]
+        for arm in ("blind_retry", "rules_only", "rules_plus_model")
+    }
     assert len({tuple(v) for v in results_by_arm.values()}) > 1
 
 

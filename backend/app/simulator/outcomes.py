@@ -61,15 +61,41 @@ def attempt_succeeds(
     decline_class: str,
     master_seed: int,
     ground_truth: CaseGroundTruth,
+    use_common_random_numbers: bool = True,
 ) -> bool:
     """False unconditionally if the case was never recoverable — no action changes
-    that. Otherwise a seeded roll against SIM_TRUE_RECOVERY_RATE_BPS, independent per
-    (arm, attempt_number): different arms take a different number of attempts at
-    different simulated times, so there's no natural draw to share across them (unlike
-    draw_ground_truth's per-case facts, which are shared).
+    that. Otherwise a seeded roll against SIM_TRUE_RECOVERY_RATE_BPS.
+
+    MEASUREMENT BUG, FOUND AND FIXED (see docs/results.md's "Common random numbers"
+    section for the full writeup): this function used to key its RNG stream on `arm`
+    as well as (case_id, attempt_number), on the reasoning that "different arms take a
+    different number of attempts at different simulated times, so there's no natural
+    draw to share across them." That reasoning is wrong for exactly the attempts that
+    DO align — when two arms face the same case at the same attempt number under the
+    same rate, common random numbers means they must draw the same uniform variate, so
+    the only source of divergence between arms is a decision that actually differs.
+    Keying on `arm` re-rolled that draw independently per arm even when two policies
+    proposed an economically identical attempt on the same case, which reinflates the
+    paired-difference estimator's variance back toward the unpaired case (point
+    estimates stay unbiased -- each individual draw is still marginally correct -- but
+    CIs computed against the old behavior were wider than the true paired design
+    should produce, and any comparison that happened to select among many
+    similarly-named or identically-parameterized candidates was, to that extent,
+    selecting on noise rather than signal).
+
+    use_common_random_numbers=True (the default): the seed is (master_seed, case_id,
+    attempt_number) only -- `arm` is accepted for logging/API-compatibility but never
+    enters the seed, so identical decisions give identical outcomes across every arm.
+    False: the original, pre-fix behavior (arm included in the seed), kept runnable
+    only so the old harness's empirical noise floor can be measured directly -- see
+    tests/test_null_arm_lift_is_zero.py. Nothing in this codebase should ever call
+    this with use_common_random_numbers=False outside that one measurement.
     """
     if not ground_truth.is_recoverable:
         return False
     rate_bps = params.SIM_TRUE_RECOVERY_RATE_BPS.get(decline_class, 0)
-    rng = random.Random(f"{master_seed}:{case_id}:{arm}:{attempt_number}")
+    if use_common_random_numbers:
+        rng = random.Random(f"{master_seed}:{case_id}:{attempt_number}")
+    else:
+        rng = random.Random(f"{master_seed}:{case_id}:{arm}:{attempt_number}")
     return rng.random() < rate_bps / 10_000
