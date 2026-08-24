@@ -1,0 +1,22 @@
+{
+  "version": "tuned_weights-v1",
+  "synthesized_from_seed": 42,
+  "provider": "grid_search",
+  "model_id": "deterministic",
+  "rules": [
+    {
+      "decline_class": "soft",
+      "priority_weight": 0.33,
+      "rationale": "deterministic grid search over 75 points against the PROPOSAL_SEED=42 corpus; maximizes net value (tie-break: recovery rate)"
+    },
+    {
+      "decline_class": "technical",
+      "priority_weight": 1.0,
+      "rationale": "fixed reference weight -- only the soft/technical ratio was searched"
+    }
+  ],
+  "scarcity_remaining_budget_threshold": 0,
+  "defer_priority_cutoff": 0.4,
+  "abstained": false,
+  "abstain_reason": null
+}
