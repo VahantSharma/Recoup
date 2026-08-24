@@ -19,23 +19,20 @@ This module intentionally does NOT run on any held-out seed -- that would leak
 held-out data into the same selection process being evaluated against it. It only ever
 touches PROPOSAL_SEED.
 
-Traced finding from the real run (see docs/results.md): the winner sits at
-scarcity_remaining_budget_threshold=0, which only ever triggers a yield at
-card_attempts_in_window >= NETWORK_ATTEMPT_BUDGET_PER_CARD_30D -- the exact same
-boundary at which app.gate's own network_attempt_budget_exhausted guardrail would
-already reject that same proposal. At that point yielding and getting gate-rejected
-are the same real-world outcome for the yielding case (no attempt, case gives up
-either way) -- so the grid search is reporting that voluntary EARLIER forfeiture
-(threshold=1 or 2, yielding before the gate would have anyway) never beat this
-functional no-op across the swept weight ratios and cutoffs. That is the
-pre-registered "allocation under contention does not pay under this outcome model"
-finding, not a bug: a case's own attempt has real, immediate expected value
-(SIM_TRUE_RECOVERY_RATE_BPS), while the hoped-for benefit to some other, unspecified
-future case competing for the same card is diffuse and apparently doesn't outweigh it
-here. (A small residual net-value gap from rules_only at this boundary-only point is
-attributable to app.simulator.outcomes.attempt_succeeds's per-(arm, attempt_number)
-independent seeding -- a documented, pre-existing Day 3 design choice, not something
-Day 4 introduced -- not to the yield mechanism doing real work at these parameters.)
+SUPERSEDED FINDING, kept here as the worked example rather than scrubbed (see
+docs/results.md's "Common random numbers" section for the full account): the first
+run of this module found a winner at scarcity_remaining_budget_threshold=0 and
+attributed its residual net-value gap over rules_only to "per-(arm, attempt_number)
+independent seeding -- a documented, pre-existing Day 3 design choice." That framing
+was wrong -- it was a measurement bug (app.simulator.outcomes.attempt_succeeds keyed
+its RNG on arm, breaking common random numbers), not an accepted design choice, and it
+meant every one of these 75 candidates was compared to rules_only, and to some extent
+to each other, on noise-inflated numbers. The bug is now fixed
+(use_common_random_numbers=True is run_arm's default); this module always scores
+against the corrected harness now. docs/results.md's Day 4 section reports the
+old-vs-new comparison (old winner, new winner, and the net-value spread across all 75
+candidates under each) explicitly, so the invalidation and the correction are both on
+the record, not just the correction.
 """
 from __future__ import annotations
 
@@ -45,7 +42,7 @@ from datetime import datetime, timezone
 
 from ..corpus_builder import build_corpus
 from ..harness.compliance import net_value_paise
-from ..harness.policies import ModelPlaybookPolicy
+from ..harness.policies import ModelPlaybookPolicy, RulesOnlyPolicy
 from ..harness.run import run_arm
 from ..policy_params import COST_PER_CONTACT_ATTEMPT_MILLI_PAISE
 from .playbook_schema import AllocationRule, Playbook
@@ -96,12 +93,16 @@ def _candidate_playbook(weight_ratio: float, scarcity_threshold: int, defer_cuto
     )
 
 
-def run_grid_search(corpus=None) -> tuple[Playbook, list[GridPoint]]:
+def run_grid_search(corpus=None, use_common_random_numbers: bool = True) -> tuple[Playbook, list[GridPoint]]:
     """Runs the full grid against PROPOSAL_SEED's corpus, returns the winning Playbook
     (objective: max net_value_paise, tie-break: max recovery rate) plus every point
     scored, for transparency in docs/results.md. corpus is an injectable parameter
     only for tests -- production callers always score against the real,
-    PROPOSAL_SEED-derived corpus built here."""
+    PROPOSAL_SEED-derived corpus built here.
+
+    use_common_random_numbers=False reproduces the exact pre-fix behavior (arm-keyed
+    attempt outcomes) -- kept callable only so main() can print the old-vs-new
+    comparison docs/results.md reports; never use False for a result that ships."""
     if corpus is None:
         corpus = build_corpus(n=CORPUS_N, seed=PROPOSAL_SEED, batch_simulated_start_at=CORPUS_START)
 
@@ -113,6 +114,7 @@ def run_grid_search(corpus=None) -> tuple[Playbook, list[GridPoint]]:
         rows = run_arm(
             corpus, ModelPlaybookPolicy(candidate, name="grid_search_probe"),
             master_seed=PROPOSAL_SEED, retry_delay_hours=24, max_case_lifetime_days=45,
+            use_common_random_numbers=use_common_random_numbers,
         )
         nv = net_value_paise(rows, COST_PER_CONTACT_ATTEMPT_MILLI_PAISE)
         rate = sum(r.recovered for r in rows) / len(rows)
@@ -145,33 +147,75 @@ def run_grid_search(corpus=None) -> tuple[Playbook, list[GridPoint]]:
     return winner, points
 
 
+def _spread(points: list[GridPoint]) -> tuple[float, float, float]:
+    values = [p.net_value_paise for p in points]
+    return min(values), max(values), (max(values) - min(values))
+
+
 def main() -> None:
-    import json
+    import statistics
     from pathlib import Path
 
-    winner, points = run_grid_search()
-    print(f"=== grid search: {len(points)} points, PROPOSAL_SEED={PROPOSAL_SEED} ===")
-    print(
-        f"winner: weight_ratio={winner.rules[0].priority_weight} "
-        f"scarcity_threshold={winner.scarcity_remaining_budget_threshold} "
-        f"defer_cutoff={winner.defer_priority_cutoff}"
+    corpus = build_corpus(n=CORPUS_N, seed=PROPOSAL_SEED, batch_simulated_start_at=CORPUS_START)
+    rules_only_rows = run_arm(
+        corpus, RulesOnlyPolicy(), master_seed=PROPOSAL_SEED,
+        retry_delay_hours=24, max_case_lifetime_days=45,
     )
-    best_point = max(points, key=lambda p: (p.net_value_paise, p.recovery_rate))
-    print(f"best net_value_paise = {best_point.net_value_paise:,.2f}  recovery_rate = {best_point.recovery_rate:.3%}")
-    if best_point.scarcity_threshold == 0:
+    rules_only_nv = net_value_paise(rules_only_rows, COST_PER_CONTACT_ATTEMPT_MILLI_PAISE)
+    rules_only_rate = sum(r.recovered for r in rules_only_rows) / len(rules_only_rows)
+
+    print(f"=== grid search under COMMON RANDOM NUMBERS (fixed, real), PROPOSAL_SEED={PROPOSAL_SEED} ===")
+    winner_new, points_new = run_grid_search(corpus=corpus, use_common_random_numbers=True)
+    best_new = max(points_new, key=lambda p: (p.net_value_paise, p.recovery_rate))
+    lo_new, hi_new, spread_new = _spread(points_new)
+    print(
+        f"winner: weight_ratio={winner_new.rules[0].priority_weight} "
+        f"scarcity_threshold={winner_new.scarcity_remaining_budget_threshold} "
+        f"defer_cutoff={winner_new.defer_priority_cutoff}"
+    )
+    print(f"best net_value_paise = {best_new.net_value_paise:,.2f}  recovery_rate = {best_new.recovery_rate:.3%}")
+    print(f"rules_only (same corpus/seed, CRN):    net_value_paise = {rules_only_nv:,.2f}  recovery_rate = {rules_only_rate:.3%}")
+    print(f"75-point net_value spread: [{lo_new:,.2f}, {hi_new:,.2f}]  width={spread_new:,.2f}")
+
+    print(f"\n=== grid search WITHOUT common random numbers (pre-fix, for comparison ONLY -- not shipped) ===")
+    winner_old, points_old = run_grid_search(corpus=corpus, use_common_random_numbers=False)
+    best_old = max(points_old, key=lambda p: (p.net_value_paise, p.recovery_rate))
+    lo_old, hi_old, spread_old = _spread(points_old)
+    print(
+        f"winner: weight_ratio={winner_old.rules[0].priority_weight} "
+        f"scarcity_threshold={winner_old.scarcity_remaining_budget_threshold} "
+        f"defer_cutoff={winner_old.defer_priority_cutoff}"
+    )
+    print(f"best net_value_paise = {best_old.net_value_paise:,.2f}  recovery_rate = {best_old.recovery_rate:.3%}")
+    print(f"75-point net_value spread: [{lo_old:,.2f}, {hi_old:,.2f}]  width={spread_old:,.2f}")
+
+    same_winner = (
+        winner_new.rules[0].priority_weight == winner_old.rules[0].priority_weight
+        and winner_new.scarcity_remaining_budget_threshold == winner_old.scarcity_remaining_budget_threshold
+        and winner_new.defer_priority_cutoff == winner_old.defer_priority_cutoff
+    )
+    print(f"\nsame winner under both? {same_winner}")
+    print(
+        f"noise share of the pre-fix 75-point spread: this fixed run's spread "
+        f"({spread_new:,.2f}) vs the old run's spread ({spread_old:,.2f}) -- "
+        f"{'the pre-fix spread was WIDER, consistent with the old run partly selecting on noise' if spread_old > spread_new else 'the pre-fix spread was not wider than the fixed run -- report exactly as observed'}"
+    )
+
+    if best_new.scarcity_threshold == 0:
         print(
-            "NOTE: winner selects scarcity_remaining_budget_threshold=0 -- a yield "
-            "only ever fires at the exact boundary where app.gate's own "
+            "\nNOTE: the CRN winner selects scarcity_remaining_budget_threshold=0 -- a "
+            "yield only ever fires at the exact boundary where app.gate's own "
             "network_attempt_budget_exhausted guardrail would already reject the "
             "same proposal, so voluntary EARLIER forfeiture never beat this "
             "functional no-op. Per the pre-registered statement (docs/results.md), "
             "this means allocation-under-contention does not pay under this outcome "
-            "model. Reported as a finding, not softened."
+            "model. Reported as a finding, not softened -- and this CRN run is what "
+            "the finding is now adjudicated against; the pre-fix run is superseded."
         )
 
     out_path = Path(__file__).resolve().parent.parent.parent / "data" / "playbook_tuned_weights.json"
-    out_path.write_text(winner.model_dump_json(indent=2) + "\n")
-    print(f"wrote {out_path}")
+    out_path.write_text(winner_new.model_dump_json(indent=2) + "\n")
+    print(f"\nwrote {out_path} (CRN winner)")
 
 
 if __name__ == "__main__":

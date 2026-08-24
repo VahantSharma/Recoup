@@ -395,10 +395,85 @@ from this same 500-draw joint sweep, same manifest, same pass.
 ## Day 4 — model layer: grid search, bake-off, held-out ablation
 
 Status as of this section's most recent edit: Phase A (deterministic core) and Phase B
-(pre-registration) are complete and committed. Phase C (the real Gemini/Groq bake-off
-and synthesis) has not run yet — the `rules_plus_model` figures below are explicitly
-placeholder-sourced until that lands, and are marked as such everywhere they appear,
-never presented as if they were real.
+(pre-registration) are complete and committed. A measurement bug was found and fixed
+before Phase C started (see immediately below) — every Day 4 figure in this file is
+now reported under the fix. Phase C (the real Gemini/Groq bake-off and synthesis) has
+not run yet — the `rules_plus_model` figures below are explicitly placeholder-sourced
+until that lands, and are marked as such everywhere they appear, never presented as if
+they were real.
+
+### Common random numbers — a measurement bug found and fixed
+
+**What it was.** `app.simulator.outcomes.attempt_succeeds` — the function deciding
+whether a given attempt on a given case succeeds — seeded its draw on
+`(master_seed, case_id, arm, attempt_number)`. Including `arm` meant that when two
+different policies faced the *identical* decision (same case, same attempt number,
+same rate), they drew independently-rerolled outcomes instead of the same one.
+`draw_ground_truth` (case recoverability, organic-resolution timing) was never
+affected — it correctly omits `arm`, and that sharing is what the paired ablation
+design's own docstring says its variance reduction rests on. Only the finer-grained,
+conditional-on-recoverable per-attempt draw had the bug.
+
+**Why it invalidates pairing, not just adds noise.** A paired/common-random-numbers
+design gets its lower variance by making two arms' outputs *positively correlated*
+whenever their inputs (decisions) are the same, so a difference between arms reflects
+only the decisions that actually differ. Keying the attempt-outcome seed on `arm`
+removes that correlation. Point estimates stay unbiased — each individual draw is
+still marginally correct against `SIM_TRUE_RECOVERY_RATE_BPS` — but every confidence
+interval computed from a paired difference was wider than the true paired design
+should produce, and any process that *selects* among many candidates on this kind of
+comparison (the 75-point grid search) was, to that extent, partly selecting on noise
+rather than signal. This was first noticed as a residual net-value gap in the grid
+search and initially mischaracterized in this file as "a documented, pre-existing Day
+3 design choice" — that framing was wrong; it was a bug, corrected here, not an
+accepted tradeoff. It was found and fixed **before any Phase C network call**, on
+review, before it could contaminate a real model result.
+
+**Fix.** `attempt_succeeds` gained `use_common_random_numbers: bool = True`. `True`
+(the new default everywhere): seed is `(master_seed, case_id, attempt_number)`, `arm`
+dropped entirely — identical decisions now give identical outcomes across every arm.
+`False`: exact pre-fix behavior, kept runnable in one place only, to measure the old
+noise floor directly.
+
+**Proof — `tests/test_null_arm_lift_is_zero.py`.** Two policies with byte-identical
+`propose()` logic, differing only in `name`, run over the same n=1201 corpus
+(`master_seed=42`):
+
+| | Under the fix (CRN) | Pre-fix (comparison only) |
+|---|---|---|
+| Per-case outcome mismatches | **0 / 1201** | 74 / 1201 recovered mismatches, 474 / 1201 attempt-count mismatches |
+| Paired rate lift | **exactly 0.0000**, CI collapses to a point `[0,0]` | −0.0050, 95% CI `[−0.0192, +0.0100]` (≈0.03 wide) |
+
+Two arms that make identical decisions produced identical outcomes under the fix and
+did not before it — proven directly, not inferred. Proven to actually catch a
+regression too: temporarily reverted the fix (put `arm` back into the CRN=True seed),
+confirmed the exact-zero test failed (486/1201 mismatches), reverted, confirmed clean.
+
+**CI-width effect on real comparisons, measured (not assumed):**
+
+| Comparison | Pre-fix CI width | Fixed (CRN) CI width |
+|---|---|---|
+| `tuned_weights` vs `rules_only`, Day 4 held-out (10 seeds) | nonzero at every seed (mean rate lift −0.0017) | **exactly 0 at every seed** — the arms are provably identical, not just close |
+| `blind_retry` vs `rules_only`, Day 3 headline | 0.0458 | 0.0450 |
+| `rules_only` vs `control`, Day 3 headline | 0.0533 | 0.0533 (control never calls `attempt_succeeds`, so this comparison was never exposed to the bug) |
+
+The reduction scales with how much two arms' behavior actually overlaps: `control`
+never attempts anything, so it was never exposed; `tuned_weights` and `rules_only`
+differ only at one narrow boundary condition, so CRN collapses their comparison to
+exact equality; `blind_retry` and `rules_only` differ substantially in what they
+attempt and when, so their shared-draw opportunities — and therefore the fix's
+variance reduction — are smaller. All three are consistent with the mechanism, not
+evidence of a partial fix.
+
+**Which figures this revises:** the Day 4 grid-search winner selection and its
+reported net value, the Day 4 held-out `tuned_weights` distribution and the 5-arm
+ranking-hold frequency, and Day 3's headline `rules_only`-involving numbers and the
+compliance break-even penalty (`control`-only and `blind_retry`-vs-`control` figures
+are unaffected — see the mechanism above). Old and new numbers are shown side by side
+in each subsection below and in the Day 3 addendum; nothing already committed under
+Day 3's own manifest is overwritten. **Not yet re-run under CRN: Day 3's 15-parameter
+OAT/joint sensitivity sweep** (500+ draws each) — a real, separately-scoped follow-up,
+flagged here rather than silently left undone.
 
 ### Pre-registered statements (written before Phase C's bake-off ever runs)
 
@@ -454,18 +529,32 @@ not softened, not treated as a failed day.
 
 ### Grid search — real, complete result (`tuned_weights`, zero network dependency)
 
+**Superseded run (pre-fix, invalid pairing — kept for the record, not reused):**
+
+```
+winner: weight_ratio=0.33  scarcity_remaining_budget_threshold=0  defer_priority_cutoff=0.4
+winner net_value_paise = 82,507,058.50   recovery_rate = 53.039%
+rules_only, same corpus/seed:            net_value_paise = 81,746,574.00   recovery_rate = 52.706%
+75-point net_value spread: [72,627,897.50, 82,507,058.50]  width=9,879,161.00
+```
+
+**Current result, under common random numbers (real, this is what `data/playbook_tuned_weights.json` now contains):**
+
 ```
 PROPOSAL_SEED=42, n=1200 (+1 harvested = 1201), 75 grid points
 (weight_ratio soft/technical: 5 pts x scarcity_remaining_budget_threshold: 3 pts x defer_priority_cutoff: 5 pts)
-winner: weight_ratio=0.33  scarcity_remaining_budget_threshold=0  defer_priority_cutoff=0.4
-winner net_value_paise = Rs 8,25,070.585  (82,507,058.50 paise)   recovery_rate = 53.039%
-rules_only,   same corpus/seed:            net_value_paise = Rs 8,17,465.74            recovery_rate = 52.706%
+winner: weight_ratio=0.33  scarcity_remaining_budget_threshold=0  defer_priority_cutoff=0.4   [same winner as the superseded run]
+winner net_value_paise = 81,468,552.00   recovery_rate = 52.206%
+rules_only, same corpus/seed:            net_value_paise = 81,468,552.00   recovery_rate = 52.206%   [EXACTLY equal, to the paise]
+75-point net_value spread: [73,388,965.00, 81,468,552.00]  width=8,079,587.00   (18.2% narrower than the pre-fix spread)
 ```
 
 Reproduce: `cd backend && python -m app.model.grid_search` (deterministic, zero
-network, prints this table and rewrites `data/playbook_tuned_weights.json`).
+network, prints both the CRN and pre-fix comparison tables above, writes the CRN
+winner to `data/playbook_tuned_weights.json`).
 
-**Traced finding, per the pre-registered statement above:** the winner selects
+**Traced finding, per the pre-registered statement above — now proven exactly, not
+just suggested by a noisy near-tie:** the winner selects
 `scarcity_remaining_budget_threshold=0`, which only ever triggers a yield at
 `card_attempts_in_window >= NETWORK_ATTEMPT_BUDGET_PER_CARD_30D` — the exact boundary
 at which `app.gate`'s own `network_attempt_budget_exhausted` guardrail would already
@@ -480,15 +569,19 @@ outcome model** — a case's own next attempt has real, immediate expected value
 unspecified future competitor for the same card doesn't outweigh it here. This is the
 pre-registered finding firing, not a bug.
 
-The small residual net-value gap above (`tuned_weights` +0.93% over `rules_only` at
-this single seed-42 point) is not attributed to the yield mechanism doing real
-allocation work — it's attributable to `app.simulator.outcomes.attempt_succeeds`'s
-existing per-`(arm, attempt_number)` independent seeding (a documented, pre-existing
-Day 3 design choice: *"different arms take a different number of attempts at
-different simulated times, so there's no natural draw to share across them"*), which
-gives every newly-named arm its own independent stream of per-attempt success draws
-regardless of any real mechanism. This is exactly why the held-out, multi-seed
-distribution below — not this single in-sample point — is the number that matters.
+**The CRN result is stronger evidence for exactly this finding than the superseded run
+was.** Under the fix, `tuned_weights`' net value and recovery rate are not just close
+to `rules_only`'s — they are *identical to the paise*, at every one of the 1201 cases'
+worth of aggregate outcome. That is the mechanically correct consequence of the
+functional-no-op finding once pairing is real: with no other source of divergence
+between the two policies' behavior, and the yield mechanism engaging only where it
+changes nothing, their aggregate results cannot differ at all. The pre-fix run's
+"+0.93% net value" gap was never evidence of the allocation mechanism doing real work
+— it was exactly the kind of arm-naming noise the fix removes, now measured at exactly
+zero. The 75-point spread also narrowed 18.2% under the fix (9,879,161 → 8,079,587
+paise), consistent with the old spread partly reflecting noise rather than only the
+real effect of varying the three grid parameters — though most of the spread survives
+the fix, meaning most of it is a real effect of the parameters, not noise.
 
 ### Held-out ablation — harness proven end-to-end, `tuned_weights` result real, `rules_plus_model` still placeholder
 
@@ -497,30 +590,34 @@ cd backend && python -m scripts.run_day4_ablation
 held_out_seeds = [101, 202, 303, 404, 505, 606, 707, 808, 909, 943]   (n=1200/seed)
 tuned_weights_file    = data/playbook_tuned_weights.json        (real, final)
 rules_plus_model_file = data/playbook_v0_placeholder.json       (placeholder -- NOT a reportable result)
+use_common_random_numbers = True
 ```
 
-**`tuned_weights - rules_only` rate-lift distribution across the 10 held-out seeds
-(real result):** mean **-0.0017**, stdev 0.0068, min -0.0092, max +0.0100, positive
-(beats `rules_only`) in **3/10** seeds. Consistent with the grid search's own
-in-sample finding above: the effect is small, straddles zero, and every individual
-seed's 95% CI (printed by the script) crosses zero — i.e. indistinguishable from noise
-at this sample size, which is itself consistent with the "allocation doesn't
-meaningfully engage" finding rather than contradicting it. The in-sample seed-42 point
-(+0.93% net value, above) sits within the same noisy band as the held-out seeds rather
-than standing out as an overfit outlier — there isn't a large in-sample/held-out gap
-to report here, because there was very little in-sample signal to overfit to in the
-first place.
+**Superseded (pre-fix, invalid pairing):** `tuned_weights − rules_only` rate-lift
+distribution across the 10 held-out seeds: mean −0.0017, stdev 0.0068, min −0.0092,
+max +0.0100, positive in 3/10 seeds. 5-arm ranking modal order held at only 4/10 seeds.
 
-**5-arm ranking (by absolute recovery rate) is NOT stable across the 10 held-out
-seeds**, even before `rules_plus_model` is a real arm: `blind_retry` and `control`
-hold their positions (highest and lowest) at every seed, but `rules_only`,
-`tuned_weights`, and the placeholder `rules_plus_model` swap order in the middle —
-modal ranking `blind_retry > rules_only > tuned_weights > rules_plus_model > control`
-holds at only 4/10 seeds; two other orderings each hold at 3/10. This is expected
-given how close `tuned_weights` sits to `rules_only` (previous paragraph) — three
-arms clustered within noise of each other will reorder under independent per-arm
-attempt-outcome draws. Full per-seed rankings are printed by the script, not
-reproduced here to avoid a second, easily-stale copy of the same output.
+**Current result, under common random numbers (real):** `tuned_weights − rules_only`
+rate-lift distribution across all 10 held-out seeds: **mean +0.0000, stdev 0.0000, min
++0.0000, max +0.0000** — every single seed's 95% CI collapses to the point `[0, 0]`.
+This is not "indistinguishable from noise at this sample size" (the superseded run's
+honest but weaker reading) — it is now a proven, exact identity: `tuned_weights` and
+`rules_only` produce byte-identical outcomes at every held-out seed, the direct
+consequence of the grid search's `scarcity_remaining_budget_threshold=0` winner being
+a functional no-op combined with pairing now actually holding. There is no
+in-sample/held-out overfitting gap to report for the pre-registered overfitting check
+either: the in-sample point (now also exactly equal to `rules_only`, see the grid
+search subsection above) and the held-out distribution agree exactly, because there
+was no real signal in-sample to overfit to at these parameters.
+
+**5-arm ranking is now stable across all 10 held-out seeds** (superseded run: modal
+order held at only 4/10). Modal — now the *only* — ranking:
+`blind_retry > rules_only > tuned_weights > rules_plus_model > control`, holding
+**10/10**. `rules_only` and `tuned_weights` are tied exactly rather than merely
+adjacent; the ranking shows them in a fixed order only because the sort is a strict
+total order over equal values, not because one measurably beats the other. Full
+per-seed rankings are printed by the script, not reproduced here to avoid a second,
+easily-stale copy of the same output.
 
 **`rules_plus_model` figures above are placeholder-sourced
 (`playbook_v0_placeholder.json`, hand-written, `version: "v0-placeholder"`) and are
@@ -529,12 +626,80 @@ ten-seed harness runs correctly end to end with zero network calls, per Amendmen
 This subsection will be rewritten with the real synthesized figures once Phase C
 lands.
 
+### Day 3 headline — CRN recheck (addendum; does not replace Day 3's committed section above)
+
+Per the fix's scope: `## Day 3`'s section above is left completely untouched — same
+figures, same manifest, same "Reproduce" instructions, reproducible exactly as
+originally documented via `scripts/run_day3_ablation.py`, which is also untouched.
+This addendum answers a narrower question raised by the fix: *would Day 3's headline
+numbers have looked different under correct pairing?* — via a new, separate script
+(`scripts/run_day3_headline_crn_recheck.py`) that runs the same corpus/params
+(n=1200(+1), `master_seed=42`) under both modes side by side. **Not re-run: the
+15-parameter OAT/joint sensitivity sweep** — flagged as a real follow-up, not done here.
+
+```
+git_sha (this recheck) = a211ea2185630ec738273b204917b10065fe9914
+corpus_hash             = 0ecf54b7d99d3fed37155c7ab7dd35952adf951400808b29c26dc19948d0e777   (identical to Day 3's own manifest -- same corpus)
+```
+
+**Validation, not just assumption:** this recheck's own pre-fix run (`use_common_random_numbers=False`)
+reproduced Day 3's originally-committed numbers exactly — net_value(`rules_only`)
+₹8,17,465.74, violations(`blind_retry`) 14,637, break-even ₹51.77, all to the last
+digit — confirming the new comparison script genuinely replicates the old code path
+byte-for-byte before the CRN variant is introduced, not a divergent reimplementation.
+
+| | `control` | `blind_retry` | `rules_only` |
+|---|---|---|---|
+| Recovered — pre-fix (committed) | 17.652% | 73.356% | 52.706% |
+| Recovered — CRN (this recheck) | 17.652% (unchanged) | 73.356% (unchanged) | **52.206%** |
+| Attempts — pre-fix / CRN | 0 / 0 | 15,996 / 16,002 | 1,658 / 1,672 |
+
+`control` is exactly unchanged (it never calls `attempt_succeeds` — never exposed to
+the bug). `blind_retry`'s recovered rate is also essentially unchanged despite calling
+`attempt_succeeds` on every attempt: it ignores the gate and retries a recoverable case
+up to ~45 times over its lifetime at a ~55% per-attempt rate, so `P(never succeeds) ≈
+0.45^45` — for `blind_retry` specifically, "recovered" is overwhelmingly determined by
+`is_recoverable` alone (never affected by the bug), not by which specific attempt
+succeeds, so the RNG-keying change barely moves its aggregate outcome. `rules_only`
+gets at most a handful of attempts per case (budget- and guardrail-bounded), so its
+outcome genuinely depends on the specific draws — its own absolute recovery rate
+shifted 52.706% → 52.206%, a different-but-equally-valid realization under the
+corrected RNG stream, not evidence of a further problem.
+
+| Paired lift | Pre-fix rate lift [CI] | CRN rate lift [CI] | CI width: pre-fix → CRN |
+|---|---|---|---|
+| `rules_only` vs `control` | +0.3505 [+0.3247, +0.3780] | +0.3455 [+0.3189, +0.3722] | 0.0533 → 0.0533 |
+| `blind_retry` vs `control` | +0.5570 [+0.5304, +0.5862] | +0.5570 [+0.5304, +0.5862] | 0.0558 → 0.0558 (unchanged — `control` was never exposed) |
+| `blind_retry` vs `rules_only` | +0.2065 [+0.1840, +0.2298] | +0.2115 [+0.1890, +0.2340] | 0.0458 → 0.0450 |
+
+| Compliance break-even | Pre-fix (committed) | CRN (this recheck) |
+|---|---|---|
+| net_value(`blind_retry`) | ₹15,75,239.06 | ₹15,75,238.37 |
+| net_value(`rules_only`) | ₹8,17,465.74 | ₹8,14,685.52 |
+| violations(`blind_retry`) | 14,637 | 14,633 |
+| break-even penalty | ₹51.77 ($0.54) | ₹51.98 ($0.54) |
+
+**Reading: the fix does not overturn Day 3's substantive conclusions.** `rules_only`
+still clearly beats `control`; `blind_retry` still recovers more gross value than
+`rules_only` at a real compliance cost; the break-even penalty still sits between
+Visa's and Mastercard's published schedules, at essentially the same value (₹51.77 →
+₹51.98). What moved: `rules_only`'s own absolute numbers (a different valid draw under
+the corrected RNG), and the `blind_retry`-vs-`rules_only` CI narrowed modestly (both
+arms call `attempt_succeeds` and share some, but far from all, of their attempt
+trajectories, so the fix's variance reduction here is real but partial — unlike the
+`tuned_weights`-vs-`rules_only` case above, where near-total behavioral overlap made
+the reduction total). Day 3's own committed section above is left as originally
+published; this addendum is the correction record, not a replacement.
+
 ### Bake-off, synthesis, real `rules_plus_model` result
 
-Not yet run. This subsection will report the three-column bake-off table (schema
-validity, sensibility, held-out lift) for both providers, name the winner on that
-combined picture, and replace every placeholder-labeled figure above with the real
-one — per CLAUDE.md, no figure is written here before the run that produced it.
+Not yet run. Will run under the now-fixed, correctly-paired harness
+(`use_common_random_numbers=True`, the default) from the start — no bake-off or
+synthesis figure has ever been computed under the pre-fix seeding. This subsection
+will report the three-column bake-off table (schema validity, sensibility, held-out
+lift) for both providers, name the winner on that combined picture, and replace every
+placeholder-labeled figure above with the real one — per CLAUDE.md, no figure is
+written here before the run that produced it.
 
 ### Prompt-injection scope (smaller correction 1)
 

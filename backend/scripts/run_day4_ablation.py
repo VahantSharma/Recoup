@@ -43,6 +43,12 @@ MAX_CASE_LIFETIME_DAYS = 45
 RULES_PLUS_MODEL_PLAYBOOK_FILE = "playbook_v0_placeholder.json"
 TUNED_WEIGHTS_PLAYBOOK_FILE = "playbook_tuned_weights.json"
 
+# True (default, real) -- the fixed, correctly-paired harness (see
+# app.simulator.outcomes.attempt_succeeds and docs/results.md's "Common random
+# numbers" section). False reproduces the pre-fix behavior for comparison ONLY --
+# never the source of a reported result.
+USE_COMMON_RANDOM_NUMBERS = True
+
 
 def _load_playbook(filename: str) -> Playbook:
     return Playbook(**json.loads((DATA_DIR / filename).read_text()))
@@ -77,6 +83,8 @@ def main() -> None:
     print(f"tuned_weights_file = {TUNED_WEIGHTS_PLAYBOOK_FILE}")
     print(f"rules_plus_model_file = {RULES_PLUS_MODEL_PLAYBOOK_FILE}"
           + ("  *** PLACEHOLDER -- not a reportable result until step 16 swaps the real winner in ***" if using_placeholder else ""))
+    print(f"use_common_random_numbers = {USE_COMMON_RANDOM_NUMBERS}"
+          + ("" if USE_COMMON_RANDOM_NUMBERS else "  *** PRE-FIX MODE -- comparison only, not a reportable result ***"))
     print()
 
     per_seed_results: dict[int, dict[str, list]] = {}
@@ -86,6 +94,7 @@ def main() -> None:
         per_seed_results[seed] = run_ablation(
             corpus, list(policies.values()), master_seed=seed,
             retry_delay_hours=RETRY_DELAY_HOURS, max_case_lifetime_days=MAX_CASE_LIFETIME_DAYS,
+            use_common_random_numbers=USE_COMMON_RANDOM_NUMBERS,
         )
 
     print("--- per-seed lift: model-sourced arms vs rules_only (rate lift, 95% CI) ---")
