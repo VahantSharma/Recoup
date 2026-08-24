@@ -11,6 +11,10 @@ from datetime import datetime
 from typing import Protocol
 
 from ..gate import ActionProposal
+from ..model.playbook_schema import Playbook  # schema only -- never provider/cache/
+                                                # ratelimit/gemini_provider/groq_provider.
+                                                # See tests/test_no_model_calls_in_reproducible_paths.py.
+from ..policy_params import NETWORK_ATTEMPT_BUDGET_PER_CARD_30D
 
 
 @dataclass(frozen=True)
@@ -82,6 +86,44 @@ class BlindRetryPolicy:
         self, case: ObservableCase, history: list[AttemptHistoryEntry], now: datetime,
         card_attempts_in_window: int,
     ) -> ActionProposal:
+        return ActionProposal(action_type="retry_payment_link", amount_paise=case.amount)
+
+
+class ModelPlaybookPolicy:
+    """Reads a Playbook (app.model.playbook_schema) to make exactly one decision a
+    playbook is allowed to make: whether THIS policy voluntarily yields a scarce
+    card slot right now, rather than competing for it. It never gets a vote on
+    whether an action is *permitted* — proposing retry_payment_link here goes through
+    app.gate.evaluate() exactly like RulesOnlyPolicy's does, unchanged.
+
+    Same class serves every playbook-sourced arm (tuned_weights via grid search,
+    rules_plus_model_gemini, rules_plus_model_groq) — only the Playbook and `name`
+    differ per instance, so a positive/negative result is attributable to the
+    playbook's numbers, not to a different code path."""
+
+    def __init__(self, playbook: Playbook, name: str):
+        self.playbook = playbook
+        self.name = name
+
+    def propose(
+        self, case: ObservableCase, history: list[AttemptHistoryEntry], now: datetime,
+        card_attempts_in_window: int,
+    ) -> ActionProposal:
+        if not self.playbook.abstained:
+            remaining = NETWORK_ATTEMPT_BUDGET_PER_CARD_30D - card_attempts_in_window
+            if remaining <= self.playbook.scarcity_remaining_budget_threshold:
+                weight = self.playbook.weight_for(case.decline_class)
+                if weight < self.playbook.defer_priority_cutoff:
+                    # TERMINAL for this case -- see app.harness.run's handling of this
+                    # action_type and docs/assumptions.md's naming note. Never
+                    # proposed for a 'hard' case in practice (RulesOnlyPolicy-style
+                    # retry proposals for 'hard' cases are rejected by the gate's own
+                    # hard_decline_stop guardrail before this would ever matter, same
+                    # as every other arm) -- this policy doesn't special-case
+                    # decline_class beyond what weight_for() already does.
+                    return ActionProposal(action_type="yield_scarce_budget")
+        # Abstained, or not scarce, or this case's weight clears the cutoff: propose
+        # the same retry every enforced arm proposes -- identical to RulesOnlyPolicy.
         return ActionProposal(action_type="retry_payment_link", amount_paise=case.amount)
 
 
