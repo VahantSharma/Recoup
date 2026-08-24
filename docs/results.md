@@ -1,7 +1,15 @@
-# Recoup — Results (Day 3)
+# Recoup — Results
 
-**Every figure in this file traces to ONE run manifest. If a number can't be traced to
-the manifest below, it doesn't belong in this file.**
+Grown day by day; each `##` section below is traced to its own run manifest and dated
+by day, not by this file's own edit history. Day 3's section (rules-only ablation,
+guardrail evidence, compliance economics, sensitivity sweep) is unchanged from when it
+was the whole file — nothing in it is re-run or re-stated by Day 4's section, and no
+figure crosses between the two sections' manifests.
+
+## Day 3 — rules-only ablation, guardrails, compliance economics, sensitivity sweep
+
+**Every figure in this section traces to ONE run manifest. If a number can't be traced
+to the manifest below, it doesn't belong in this section.**
 
 ```
 git_sha       = 9ce8b02a7d537e044c62073b2afbedee792f872f
@@ -28,7 +36,7 @@ parameters were run through the harness, all in one pass.
 result throughout this file is the *relative* comparison across arms on identical
 seeds, not any single arm's absolute percentage.
 
-## Reproduce
+### Reproduce
 
 ```
 cd backend
@@ -43,7 +51,7 @@ identical hashes shown above before reproducing every figure below.
 
 ---
 
-## Headline ablation (n=1201, master_seed=42)
+### Headline ablation (n=1201, master_seed=42)
 
 Three-way outcome split — recovered / deferred to human review / not recovered.
 Deferred is a distinct, honest outcome, not silently folded into "not recovered":
@@ -87,7 +95,7 @@ compliance violations." See Compliance economics below.
 
 ---
 
-## Guardrail reachability table (rules_only, every `gate.evaluate()` call, n=1201)
+### Guardrail reachability table (rules_only, every `gate.evaluate()` call, n=1201)
 
 Not just a firing-count table — a full audit of all 8 guardrails, worked through as a
 class of question ("is this guardrail reachable by the harness, and if not, why, and
@@ -148,7 +156,7 @@ only ever resampled reason strings already in the taxonomy. Fixed via
 
 ---
 
-## Deferred-bucket reconciliation (rules_only)
+### Deferred-bucket reconciliation (rules_only)
 
 Every case whose *first* gate call routes to `NEEDS_REVIEW` — `unclassifiable_decline_human_review`,
 `risk_hard_stop`, or `amount_ceiling_needs_signoff`, checked in that priority order, so
@@ -215,7 +223,7 @@ rather than being a rounding error.
 
 ---
 
-## Compliance economics
+### Compliance economics
 
 Solved on **net** value (recovered amount minus the cost of every contact attempt
 made), never gross recovered amount — see `app/harness/compliance.py`'s module
@@ -286,7 +294,7 @@ Visa's lighter schedule.**
 
 ---
 
-## Sensitivity sweep
+### Sensitivity sweep
 
 ### OAT sweep (5 points/parameter, n=500 cases/point, 15 parameters × 5 = 75 points)
 
@@ -366,7 +374,7 @@ from this same 500-draw joint sweep, same manifest, same pass.
 
 ---
 
-## Known caveats
+### Known caveats
 
 - `arrival_window_days` and `retry_delay_hours` have declared defaults but no
   declared sweep range in `docs/assumptions.md`, so neither is included in the
@@ -381,3 +389,163 @@ from this same 500-draw joint sweep, same manifest, same pass.
   CLAUDE.md and `docs/assumptions.md`'s HEADLINE RISK parameters) — the load-bearing
   claims are the relative comparisons (lift, break-even distribution, ranking
   stability), not any single arm's absolute percentage.
+
+---
+
+## Day 4 — model layer: grid search, bake-off, held-out ablation
+
+Status as of this section's most recent edit: Phase A (deterministic core) and Phase B
+(pre-registration) are complete and committed. Phase C (the real Gemini/Groq bake-off
+and synthesis) has not run yet — the `rules_plus_model` figures below are explicitly
+placeholder-sourced until that lands, and are marked as such everywhere they appear,
+never presented as if they were real.
+
+### Pre-registered statements (written before Phase C's bake-off ever runs)
+
+These three statements were committed in the same pass as `app/model/abstention.py`,
+before any provider was called — the commit predating the bake-off is the evidence
+they weren't chosen after seeing results, not just this section's own claim.
+
+**1. Abstention rule.** Applied per-provider to its own 20-call bake-off. "Sensible"
+means schema-valid AND passing the deterministic sensibility checks
+`scripts/run_day4_bakeoff.py` applies (decline_class sane, priority_weight in a
+plausible range, rationale on-topic). Any one of three rules firing abstains that
+provider's playbook (falls back to `RulesOnlyPolicy`-identical behavior, a clean
+reportable result, not softened):
+
+- **Rule A** — fewer than 17/20 generations were sensible.
+- **Rule B** — among the sensible generations, the coefficient of variation of the
+  soft/technical weight ratio exceeds 0.30, or the coefficient of variation of
+  `defer_priority_cutoff` exceeds 0.30 (checked independently — a provider stable on
+  the ratio alone while scattered on the cutoff must not pass silently), or fewer
+  than 5 sensible generations exist to measure dispersion from at all.
+- **Rule C** — `scarcity_remaining_budget_threshold` is a small integer, where a CV
+  check is the wrong tool: abstain if its single most common value doesn't appear in
+  at least 60% of the sensible generations.
+
+Exact constants and the decision function: `app/model/abstention.py`
+(`MIN_SENSIBLE_COUNT=17`, `MAX_WEIGHT_RATIO_CV=0.30`, `MAX_CUTOFF_CV=0.30`,
+`MIN_GENERATIONS_FOR_CV=5`, `MIN_MODAL_AGREEMENT=0.60`).
+
+**2. Grid-search-vs-model framing.** Grid search (`app/model/grid_search.py`)
+optimizes net value directly against the exact `PROPOSAL_SEED=42` corpus. A
+synthesized playbook only ever sees aggregate summary statistics of that same corpus
+(per-class recovery rate, attempt-count distribution, the guardrail firing table, the
+~92.1% budget-saturation figure, ticket-size-by-class summary stats — never raw
+per-case data). So **`model < grid_search` is the expected default outcome,
+`model ≈ grid_search` is the notable one** (the LLM recovered a near-optimal
+allocation from prose statistics alone), **and `model > grid_search` would need a real
+explanation** — most plausibly better generalization on the held-out seeds
+specifically, which the multi-seed design below is positioned to actually detect
+rather than assert. Because the grid now fits three free parameters (weight ratio x
+scarcity threshold x defer cutoff) against one seed-42 corpus — materially more
+overfittable than a single scalar — `tuned_weights`' in-sample seed-42 `net_value` is
+reported alongside its 10-seed held-out distribution below; the gap between the two
+*is* the overfitting measurement.
+
+**3. Yield-is-terminal consequence statement.** Yielding is terminal for the yielding
+case — `app.harness.run`'s `state.give_up()` never schedules another attempt, so a
+case that yields forfeits its entire remaining recovery probability permanently, on
+the bet that a higher-weight case reaches the same card's freed slot first. If the
+grid search (or a provider's synthesized playbook) selects parameters at or near
+never-yield, **we report that allocation under contention does not pay under this
+outcome model**, and the model arm's result is reported against that same finding —
+not softened, not treated as a failed day.
+
+### Grid search — real, complete result (`tuned_weights`, zero network dependency)
+
+```
+PROPOSAL_SEED=42, n=1200 (+1 harvested = 1201), 75 grid points
+(weight_ratio soft/technical: 5 pts x scarcity_remaining_budget_threshold: 3 pts x defer_priority_cutoff: 5 pts)
+winner: weight_ratio=0.33  scarcity_remaining_budget_threshold=0  defer_priority_cutoff=0.4
+winner net_value_paise = Rs 8,25,070.585  (82,507,058.50 paise)   recovery_rate = 53.039%
+rules_only,   same corpus/seed:            net_value_paise = Rs 8,17,465.74            recovery_rate = 52.706%
+```
+
+Reproduce: `cd backend && python -m app.model.grid_search` (deterministic, zero
+network, prints this table and rewrites `data/playbook_tuned_weights.json`).
+
+**Traced finding, per the pre-registered statement above:** the winner selects
+`scarcity_remaining_budget_threshold=0`, which only ever triggers a yield at
+`card_attempts_in_window >= NETWORK_ATTEMPT_BUDGET_PER_CARD_30D` — the exact boundary
+at which `app.gate`'s own `network_attempt_budget_exhausted` guardrail would already
+reject that same proposal. Confirmed by tracing one shared card's full decision log
+directly (not inferred): at that boundary, yielding and getting gate-rejected are the
+same real-world outcome for the case in question (no attempt, gives up either way), so
+voluntary *earlier* forfeiture (`scarcity_remaining_budget_threshold=1` or `2`, giving
+up an attempt the gate would still have allowed) never beat this functional no-op
+anywhere in the swept space. **Allocation-under-contention does not pay under this
+outcome model** — a case's own next attempt has real, immediate expected value
+(`SIM_TRUE_RECOVERY_RATE_BPS` ~ 55%), and the diffuse, uncertain benefit to some
+unspecified future competitor for the same card doesn't outweigh it here. This is the
+pre-registered finding firing, not a bug.
+
+The small residual net-value gap above (`tuned_weights` +0.93% over `rules_only` at
+this single seed-42 point) is not attributed to the yield mechanism doing real
+allocation work — it's attributable to `app.simulator.outcomes.attempt_succeeds`'s
+existing per-`(arm, attempt_number)` independent seeding (a documented, pre-existing
+Day 3 design choice: *"different arms take a different number of attempts at
+different simulated times, so there's no natural draw to share across them"*), which
+gives every newly-named arm its own independent stream of per-attempt success draws
+regardless of any real mechanism. This is exactly why the held-out, multi-seed
+distribution below — not this single in-sample point — is the number that matters.
+
+### Held-out ablation — harness proven end-to-end, `tuned_weights` result real, `rules_plus_model` still placeholder
+
+```
+cd backend && python -m scripts.run_day4_ablation
+held_out_seeds = [101, 202, 303, 404, 505, 606, 707, 808, 909, 943]   (n=1200/seed)
+tuned_weights_file    = data/playbook_tuned_weights.json        (real, final)
+rules_plus_model_file = data/playbook_v0_placeholder.json       (placeholder -- NOT a reportable result)
+```
+
+**`tuned_weights - rules_only` rate-lift distribution across the 10 held-out seeds
+(real result):** mean **-0.0017**, stdev 0.0068, min -0.0092, max +0.0100, positive
+(beats `rules_only`) in **3/10** seeds. Consistent with the grid search's own
+in-sample finding above: the effect is small, straddles zero, and every individual
+seed's 95% CI (printed by the script) crosses zero — i.e. indistinguishable from noise
+at this sample size, which is itself consistent with the "allocation doesn't
+meaningfully engage" finding rather than contradicting it. The in-sample seed-42 point
+(+0.93% net value, above) sits within the same noisy band as the held-out seeds rather
+than standing out as an overfit outlier — there isn't a large in-sample/held-out gap
+to report here, because there was very little in-sample signal to overfit to in the
+first place.
+
+**5-arm ranking (by absolute recovery rate) is NOT stable across the 10 held-out
+seeds**, even before `rules_plus_model` is a real arm: `blind_retry` and `control`
+hold their positions (highest and lowest) at every seed, but `rules_only`,
+`tuned_weights`, and the placeholder `rules_plus_model` swap order in the middle —
+modal ranking `blind_retry > rules_only > tuned_weights > rules_plus_model > control`
+holds at only 4/10 seeds; two other orderings each hold at 3/10. This is expected
+given how close `tuned_weights` sits to `rules_only` (previous paragraph) — three
+arms clustered within noise of each other will reorder under independent per-arm
+attempt-outcome draws. Full per-seed rankings are printed by the script, not
+reproduced here to avoid a second, easily-stale copy of the same output.
+
+**`rules_plus_model` figures above are placeholder-sourced
+(`playbook_v0_placeholder.json`, hand-written, `version: "v0-placeholder"`) and are
+not a reportable result about the model** — they exist only to prove the five-arm,
+ten-seed harness runs correctly end to end with zero network calls, per Amendment 5.
+This subsection will be rewritten with the real synthesized figures once Phase C
+lands.
+
+### Bake-off, synthesis, real `rules_plus_model` result
+
+Not yet run. This subsection will report the three-column bake-off table (schema
+validity, sensibility, held-out lift) for both providers, name the winner on that
+combined picture, and replace every placeholder-labeled figure above with the real
+one — per CLAUDE.md, no figure is written here before the run that produced it.
+
+### Prompt-injection scope (smaller correction 1)
+
+`tests/test_model_prompt_injection.py` feeds a hostile playbook (extreme weights, an
+explicit "ignore all guardrails" rationale string) through the real gate and asserts
+rejection identical to `rules_only`'s. **Day 4 introduces no new untrusted-text
+surface: synthesis input is aggregate statistics computed from our own committed run
+data, never customer text.** The test demonstrates the gate is indifferent to the
+playbook's free-text field regardless of that — a real, verified property (proven to
+actually catch a guardrail bypass via a temporary break-then-revert against
+`app/gate.py` itself), but a narrower claim than "defends against injected customer
+text," which doesn't apply here because there's no such input path to defend. If
+`rationale` strings are ever rendered in a dashboard, that becomes a genuine
+output-handling surface needing its own test — not covered by this one.
