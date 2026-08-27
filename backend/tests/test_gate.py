@@ -2,9 +2,13 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.gate import ActionProposal, GateResult, evaluate
+from app.gate import GUARDRAIL_ORDER, ActionProposal, GateResult, evaluate
 from app.models import PaymentCase
-from app.policy_params import AMOUNT_CEILING_PAISE, RECONCILE_FRESHNESS_WINDOW_SECONDS
+from app.policy_params import (
+    AMOUNT_CEILING_PAISE,
+    NETWORK_ATTEMPT_BUDGET_PER_CARD_30D,
+    RECONCILE_FRESHNESS_WINDOW_SECONDS,
+)
 
 
 def _now() -> datetime:
@@ -172,3 +176,76 @@ def test_stale_reconcile_takes_priority_over_hard_decline():
 def test_unknown_decline_takes_priority_over_amount_ceiling():
     result = _evaluate(_case(decline_class="unknown"), amount_paise=AMOUNT_CEILING_PAISE + 1)
     assert result.reason == "unclassifiable_decline_human_review"
+
+
+# --- GUARDRAIL_ORDER, proven exhaustively against evaluate()'s real behavior ---
+#
+# app.gate.GUARDRAIL_ORDER exists so a downstream display (Day 5's case audit screen)
+# can show "which guardrails were actually evaluated before this one fired" without a
+# second, possibly-diverging copy of the checked order. This section is what makes that
+# safe: for every pair of guardrails, a single case is built to trip BOTH conditions at
+# once (not just one at a time, which the tests above already cover) -- if
+# GUARDRAIL_ORDER's order ever stops matching evaluate()'s real if-chain, one of these
+# assertions fails.
+
+# One independently-triggering set of overrides per guardrail. Case-level keys route
+# through _case(); evaluate-level keys route through _evaluate(). break_even_floor's
+# trigger (attempt_count_in_window=1000) is a deliberately extreme crafted probe, same
+# technique as test_break_even_formula_goes_negative_for_an_extreme_crafted_input above:
+# ATTEMPT_DECAY_FACTOR ** 999 rounds the effective recovery rate to 0 for ANY
+# decline_class at ANY amount, so this one override alone makes
+# expected_value_milli_paise negative regardless of anything else on the case --
+# deliberately chosen to also be >= NETWORK_ATTEMPT_BUDGET_PER_CARD_30D, so merging it
+# with network_attempt_budget_exhausted's own trigger (a smaller value) below is safe:
+# whichever value wins the merge still satisfies both guardrails' conditions.
+_TRIGGER: dict[str, dict] = {
+    "stale_reconcile": {"reconciled_age_seconds": RECONCILE_FRESHNESS_WINDOW_SECONDS + 1},
+    "unclassifiable_decline_human_review": {"decline_class": "unknown"},
+    "hard_decline_stop": {"decline_class": "hard"},
+    "risk_hard_stop": {"risk_flagged": True},
+    "already_resolved": {"reconciled_status": "captured"},
+    "amount_ceiling_needs_signoff": {"amount_paise": AMOUNT_CEILING_PAISE + 1},
+    "network_attempt_budget_exhausted": {"attempt_count_in_window": NETWORK_ATTEMPT_BUDGET_PER_CARD_30D},
+    "break_even_floor": {"attempt_count_in_window": 1000},
+}
+_CASE_LEVEL_KEYS = {"decline_class", "risk_flagged"}
+_REAL_GUARDRAILS = [g for g in GUARDRAIL_ORDER if g != "permitted"]
+
+# The one pair with no ordering ambiguity to resolve: decline_class is a single field,
+# so a case cannot simultaneously BE "unknown" (guardrail 2's trigger) and "hard"
+# (guardrail 3's trigger) -- they can never both apply to the same case, in production
+# or in a crafted one, so there is nothing for this test to prove between them.
+_STRUCTURALLY_EXCLUSIVE_PAIRS = {
+    frozenset({"unclassifiable_decline_human_review", "hard_decline_stop"}),
+}
+
+
+def test_guardrail_order_constant_matches_every_pairwise_short_circuit():
+    """Exhaustive, not spot-checked: for every pair (earlier, later) in GUARDRAIL_ORDER,
+    a case built to trip BOTH independently comes back with the earlier one's reason.
+    8 real guardrails -> 28 pairs, minus the 1 structurally-exclusive pair -> 27 proven."""
+    tested = 0
+    for i, earlier in enumerate(_REAL_GUARDRAILS):
+        for later in _REAL_GUARDRAILS[i + 1:]:
+            if frozenset({earlier, later}) in _STRUCTURALLY_EXCLUSIVE_PAIRS:
+                continue
+            case_kwargs: dict = {}
+            eval_kwargs: dict = {}
+            for name in (earlier, later):
+                for k, v in _TRIGGER[name].items():
+                    (case_kwargs if k in _CASE_LEVEL_KEYS else eval_kwargs)[k] = v
+            result = _evaluate(_case(**case_kwargs), **eval_kwargs)
+            assert result.reason == earlier, (
+                f"{earlier!r} should short-circuit before {later!r} ever runs, got "
+                f"{result.reason!r} for case_kwargs={case_kwargs} eval_kwargs={eval_kwargs}"
+            )
+            tested += 1
+    assert tested == 27, f"expected to exercise 27 pairs, exercised {tested} -- a pair was silently skipped"
+
+
+def test_guardrail_order_constant_is_exactly_the_documented_8_plus_permitted():
+    assert GUARDRAIL_ORDER == (
+        "permitted", "stale_reconcile", "unclassifiable_decline_human_review", "hard_decline_stop",
+        "risk_hard_stop", "already_resolved", "amount_ceiling_needs_signoff",
+        "network_attempt_budget_exhausted", "break_even_floor",
+    )

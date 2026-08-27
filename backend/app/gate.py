@@ -21,6 +21,25 @@ REJECTED = "rejected"
 NEEDS_REVIEW = "NEEDS_REVIEW"
 NOT_WORKED = "NOT_WORKED"
 
+# The gate's real checked order, numbered to match evaluate()'s own comments exactly.
+# Exists so any downstream consumer that needs to display "which guardrails were
+# actually evaluated before this one fired" (Day 5's case audit screen) reads the same
+# order the gate itself checks -- imported, never re-declared elsewhere. Additive only:
+# evaluate()'s behavior is unchanged by this constant's existence.
+# tests/test_gate.py::test_guardrail_order_constant_matches_every_pairwise_short_circuit
+# proves this tuple's order against evaluate()'s actual behavior, not just its comments.
+GUARDRAIL_ORDER: tuple[str, ...] = (
+    "permitted",
+    "stale_reconcile",
+    "unclassifiable_decline_human_review",
+    "hard_decline_stop",
+    "risk_hard_stop",
+    "already_resolved",
+    "amount_ceiling_needs_signoff",
+    "network_attempt_budget_exhausted",
+    "break_even_floor",
+)
+
 # Statuses observed (Day 1, live) or documented as meaning "already resolved,
 # nothing left to retry." Only 'captured' has actually been observed on a real
 # response this session — others get added once seen or independently verified,

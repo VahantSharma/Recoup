@@ -18,6 +18,7 @@ from statistics import NormalDist
 
 from app import manifest
 from app.corpus_builder import build_corpus
+from app.gate import GUARDRAIL_ORDER
 from app.harness.compliance import break_even_penalty_paise, net_value_paise, total_violations
 from app.harness.policies import BlindRetryPolicy, ControlPolicy, RulesOnlyPolicy
 from app.harness.run import run_arm, run_arm_with_guardrail_counts
@@ -41,12 +42,10 @@ SEED = 42
 RETRY_DELAY_HOURS = 24
 MAX_CASE_LIFETIME_DAYS = 45
 
-# Every 8 guardrails, in the gate's own checked order -- see app/gate.py.
-GUARDRAIL_ORDER = (
-    "permitted", "stale_reconcile", "unclassifiable_decline_human_review", "hard_decline_stop",
-    "risk_hard_stop", "already_resolved", "amount_ceiling_needs_signoff",
-    "network_attempt_budget_exhausted", "break_even_floor",
-)
+# Every 8 guardrails, in the gate's own checked order -- imported from app.gate, not
+# redeclared here, so this script's guardrail table can never silently diverge from
+# what evaluate() actually checks (see app.gate.GUARDRAIL_ORDER's own docstring and
+# tests/test_gate.py's pairwise-ordering proof).
 
 # Per-guardrail reachability verdict, worked out by tracing the gate's checked order
 # against what the harness actually feeds it -- not guessed, not left implicit. See
