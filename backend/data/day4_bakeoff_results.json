@@ -1,0 +1,946 @@
+{
+  "gemini": {
+    "provider": "gemini",
+    "model_id": "gemini-3.5-flash-lite",
+    "schema_valid_count": 20,
+    "sensible_count": 20,
+    "per_call": [
+      {
+        "index": 0,
+        "cache_key": "896c09e62c6709b26be796d0c4e6c6e2626b74080fcd97bf9efc6848e1afd3e3",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 0.85,
+              "rationale": "Soft declines represent insufficient funds or temporary issuer unavailability with a strong recovery rate of 56.8% and higher ticket sizes (Rs802), making them vital to keep attempting."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.95,
+              "rationale": "Technical declines show high recovery rates (68.0%) and fewer mean attempts (1.28), making them extremely cost-effective to retain under high card contention."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.9
+        }
+      },
+      {
+        "index": 1,
+        "cache_key": "8dca7b32a29c568d077841b328f8de20d8cc6e2f605f6dacf55567cf32e2cdc2",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 56.8,
+              "rationale": "Soft declines represent 951 cases with a 56.8 percent recovery rate and higher median ticket size of Rs802, making them vital to preserve under budget contention."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 68.0,
+              "rationale": "Technical declines achieve a higher recovery rate of 68.0 percent despite a lower volume of 128 cases and smaller ticket size, warranting a strong priority weight."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 60.0
+        }
+      },
+      {
+        "index": 2,
+        "cache_key": "6a354b1000667e41a7a9bd6a91925c3cbaa3e23897efc9bbdd8087971aaf0649",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines represent temporary issuer issues or insufficient funds with a solid recovery rate of 56.8% and higher ticket sizes, justifying a slightly higher priority to retain retry attempts."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.5,
+              "rationale": "Technical declines show strong recovery rates at 68.0% and lower average attempt counts, making them highly efficient targets for preserving limited card budgets."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.3
+        }
+      },
+      {
+        "index": 3,
+        "cache_key": "5f1644035e825b41547ee651de1984d30dfc34b33fb5e835c51c9fe8d3e7c06c",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines represent temporary issuer issues or insufficient funds with lower recovery rate (56.8%) compared to technical declines, meaning they consume budget more cautiously under high contention."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.8,
+              "rationale": "Technical declines show a higher recovery rate (68.0%) and fewer mean attempts per case (1.28), making them more valuable to preserve when budgets are scarce."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.5
+        }
+      },
+      {
+        "index": 4,
+        "cache_key": "c1155b4951ef42fdffb56f90cc9b9c2bdafc084913c2f8fcdcd5a28063dfd39e",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines represent temporary issuer issues with decent recovery rates (56.8%) and higher median ticket sizes (Rs802), justifying moderate preservation of retry budget when cards are contended."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.5,
+              "rationale": "Technical declines show strong recovery rates (68.0%) with fewer attempts required per case (1.28), making them higher priority to retain when card attempt budgets grow scarce."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.3
+        }
+      },
+      {
+        "index": 5,
+        "cache_key": "aa7aa20b6f428e5f65088e07a17adc9f8133dacb9c2f11a53f6bbcd344558ece",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 56.8,
+              "rationale": "Soft declines represent temporary fund shortages with a 56.8 percent recovery rate and higher median ticket, making them valuable to preserve under card budget contention."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 68.0,
+              "rationale": "Technical declines have a higher recovery rate at 68.0 percent despite fewer cases, prioritizing them helps capture quick technical recovery wins when budgets tighten."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 60.0
+        }
+      },
+      {
+        "index": 6,
+        "cache_key": "c67052155beea1302ef3ab3464e6b3c6afb00309cbe9c89be7171b687a6d4158",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines represent insufficient funds or temporary issues with a lower recovery rate of 56.8% and higher mean attempts, making them secondary to technical declines when card budgets are scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.8,
+              "rationale": "Technical declines show a higher recovery rate of 68.0% and lower mean attempts, indicating they are more efficient to prioritize when card budgets are heavily constrained."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.5
+        }
+      },
+      {
+        "index": 7,
+        "cache_key": "2f6291cc44b4da05b9167a7b27266be0b31befee651b7da34016f5e3fb1a89c9",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines represent temporary issuer issues or insufficient funds with lower recovery rate and higher attempt usage, making them primary candidates for yielding when the card budget is scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.8,
+              "rationale": "Technical declines show higher recovery rates and lower attempt consumption, so we protect them from yielding when card budgets are scarce."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.5
+        }
+      },
+      {
+        "index": 8,
+        "cache_key": "0771c8e6f74e4ff27f33034819f2b875b04ed75836c912075304465e9644f385",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 2.5,
+              "rationale": "Soft declines represent temporary fund issues with a solid recovery rate of 56.8% and higher median tickets, making them important to preserve when budget is tight."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 3.0,
+              "rationale": "Technical declines have a higher recovery rate of 68.0% and fewer total cases, so prioritizing them helps maximize overall recovery efficiency."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 2.0
+        }
+      },
+      {
+        "index": 9,
+        "cache_key": "c5dce7141bb15289b6d9b5cffda07892225c279563ce4567eecb7e0417e9fd11",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.5,
+              "rationale": "Soft declines represent insufficient funds or temporary issuer unavailability with a lower recovery rate of 56.8% and higher mean attempts, making them secondary when card budget is scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 2.2,
+              "rationale": "Technical declines show a higher recovery rate of 68.0% and fewer required attempts, justifying higher priority to maximize successful recoveries under scarce budgets."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.8
+        }
+      },
+      {
+        "index": 10,
+        "cache_key": "ce0658a803a337d0723493e408258a40d1c2dfa3469dfc72e4600f5fb0b49004",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines have a lower recovery rate (56.8%) and higher average attempt count, making them good candidates to yield when card budgets are severely constrained."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.8,
+              "rationale": "Technical declines demonstrate higher recovery efficiency (68.0%) and fewer consumed attempts, so they should be prioritized to preserve recovery value."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.5
+        }
+      },
+      {
+        "index": 11,
+        "cache_key": "218654a8c69fd939ace934aba448c53bd470d4d81dfc072d85b3066da492d15b",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "technical",
+              "priority_weight": 75.0,
+              "rationale": "Technical declines show a higher historical recovery rate of 68.0% with fewer average attempts, making them very efficient to preserve when card budgets become constrained."
+            },
+            {
+              "decline_class": "soft",
+              "priority_weight": 60.0,
+              "rationale": "Soft declines represent the majority volume with a 56.8% recovery rate. While important, they have lower efficiency than technical declines under tight card attempt budgets."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 65.0
+        }
+      },
+      {
+        "index": 12,
+        "cache_key": "7af400cd4b0ef72f7f321ad837e2127fa24ba883f0da3bf25d5d354e61f45b59",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 56.8,
+              "rationale": "Soft declines represent 951 cases with a 56.8 percent recovery rate and median ticket Rs802, reflecting solid recovery potential under tight budget constraints."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 68.0,
+              "rationale": "Technical declines show a higher recovery rate of 68.0 percent across 128 cases with median ticket Rs717, making them vital to preserve when budgets are scarce."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 1,
+          "defer_priority_cutoff": 60.0
+        }
+      },
+      {
+        "index": 13,
+        "cache_key": "52996c2d4880703c5f1bb8eb005eceeaa67218bfb92c2837b0efc7f0485ea994",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 2.5,
+              "rationale": "Soft declines represent temporary fund shortages or issuer unavailability with lower recovery rates (56.8%) compared to technical issues, making them secondary when card budgets are heavily constrained."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 4.0,
+              "rationale": "Technical declines show a higher recovery rate (68.0%) and fewer mean attempts (1.28), indicating transient gateway errors that resolve well and deserve priority under scarcity."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 3.0
+        }
+      },
+      {
+        "index": 14,
+        "cache_key": "fdfb70cfcdc9176a911e816ba9aa00d1e9b6b902864e5c4b9c4bb28bb852a628",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 56.8,
+              "rationale": "Soft declines represent temporary issuer and fund issues with a robust 56.8% recovery rate; preserving attempts here maintains critical yield."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 68.0,
+              "rationale": "Technical errors have a higher recovery rate of 68.0% and lower average attempt counts, making them a high-priority retention target."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 60.0
+        }
+      },
+      {
+        "index": 15,
+        "cache_key": "5b71ec7b58536016381baf3875cf7cb5e96ccabb22496f69ac7fbdc46ed18cfa",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines show a solid recovery rate of 56.8% and moderate ticket size, making them moderately valuable to keep attempting under budget contention."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.8,
+              "rationale": "Technical declines demonstrate a higher recovery rate of 68.0% with fewer required attempts, meaning they yield superior recovery value per attempt when cards are scarce."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.5
+        }
+      },
+      {
+        "index": 16,
+        "cache_key": "6852154f696a07ac9d59f7ef310c6547c58d9f0ef0a9abe2e885796133c9aefb",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines represent temporary issuer issues or insufficient funds with lower individual recovery rates and high volume, making them candidates for yielding when the card budget is scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.8,
+              "rationale": "Technical declines show higher recovery rates and fewer average attempts, making them more valuable to preserve when card budgets are heavily contended."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.5
+        }
+      },
+      {
+        "index": 17,
+        "cache_key": "7adf143d83871d1a7acf7660018b99cec98da671cd7c2ff21f59a1e7ee902cad",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.5,
+              "rationale": "Soft declines represent insufficient funds or temporary issuer unavailability with a solid 56.8% recovery rate, making them moderately important to retry when card budget is constrained."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 2.2,
+              "rationale": "Technical declines have a higher recovery rate at 68.0% and lower average attempts, making them very high priority to retain budget slots for successful recovery."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.8
+        }
+      },
+      {
+        "index": 18,
+        "cache_key": "d93daa53dbfdad239f58569d423620bd0e1daac20e8d4c3aa8e56f84c3a458f7",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 56.8,
+              "rationale": "Soft declines represent 951 cases with a 56.8 percent recovery rate and median ticket of Rs802. They deserve moderate priority to balance volume and recovery."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 68.0,
+              "rationale": "Technical declines show a higher recovery rate of 68.0 percent despite fewer cases, making them slightly more valuable to preserve under scarce budgets."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 60.0
+        }
+      },
+      {
+        "index": 19,
+        "cache_key": "7a1a34d58882e1f1f0de74fa3b3121c3da3942b9c568172ca81f5d8ce303db91",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 56.8,
+              "rationale": "Soft declines represent temporary fund shortages with a 56.8 percent recovery rate and higher median ticket, making them valuable to preserve under scarce card budgets."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 68.0,
+              "rationale": "Technical declines have a higher recovery rate at 68.0 percent and lower attempt overhead, warranting a higher preservation priority when card budget is constrained."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 60.0
+        }
+      }
+    ],
+    "abstained": true,
+    "abstain_reason": "Rule B: defer_priority_cutoff CV=1.265 exceeds MAX_CUTOFF_CV=0.3",
+    "total_input_tokens": 12860,
+    "total_output_tokens": 3585
+  },
+  "groq": {
+    "provider": "groq",
+    "model_id": "openai/gpt-oss-120b",
+    "schema_valid_count": 20,
+    "sensible_count": 20,
+    "per_call": [
+      {
+        "index": 0,
+        "cache_key": "714286f71cb00265ef867d55081b5fd31c01cf51dd897a17d5bf6ed1f87a55a0",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines recover ~57% with higher ticket size; keep attempts when budget scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.7,
+              "rationale": "Technical declines recover less and have lower ticket; can yield to free budget for higher\u2011value cases."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.8
+        }
+      },
+      {
+        "index": 1,
+        "cache_key": "1b07d6da92de9916a7690e0c787ac4a32aae399fb1c221146e723704e5a4edee",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines often recover but consume more attempts; when budget scarce we prioritize preserving attempts for higher\u2011value cases."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines have higher recovery per attempt; keep attempting them even under scarce budget."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 1,
+          "defer_priority_cutoff": 1.05
+        }
+      },
+      {
+        "index": 2,
+        "cache_key": "8e3cee11d05f21bb0a80a9174e95dce05996b1e48ad67bcb4933245d57880c1e",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines recover well and have higher ticket size; keep attempts when budget scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.7,
+              "rationale": "Technical declines recover less and cost less; yield when budget scarce to free slots for higher\u2011value cases."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.8
+        }
+      },
+      {
+        "index": 3,
+        "cache_key": "ff63b62f9b53ecee1c739b4d8f8d2687a9c88288366e0e029c02fa3ff91d1bfd",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines often recover but consume more attempts; when budget scarce we prioritize preserving attempts for higher\u2011value cases."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines have higher recovery per attempt; keep attempting them even under scarce budget."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 1,
+          "defer_priority_cutoff": 1.05
+        }
+      },
+      {
+        "index": 4,
+        "cache_key": "5f20c84507eb565171f3d355e2588b9099c2ae30786f268bbf23d31cfb681a3e",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines often recover but consume more attempts; when budget scarce we prioritize preserving attempts for higher\u2011value cases."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines have higher recovery per attempt; keep attempting them even under scarce budget."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 1,
+          "defer_priority_cutoff": 1.05
+        }
+      },
+      {
+        "index": 5,
+        "cache_key": "fe6576e2ca94a9db66e99542f6fe93763e17e31a3d9ca231daca8faed640b7e1",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines often recover and have higher ticket value; keep attempts when budget scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.6,
+              "rationale": "Technical declines recover less and cost extra attempts; yield when budget scarce."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.9
+        }
+      },
+      {
+        "index": 6,
+        "cache_key": "0f93d7f421b8222e9ab58b591ba38253ca1e9bb42f6c71e3cdc5828da66efd01",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines recover well and have higher ticket size; keep attempts when budget scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.7,
+              "rationale": "Technical declines recover less and cost more attempts; allow yielding under scarce budget."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.8
+        }
+      },
+      {
+        "index": 7,
+        "cache_key": "37926aeb4be227e804998d78bacd785b411e8da5a3a2d676e029ea6e1285235f",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 0.8,
+              "rationale": "Soft declines recover less and need more attempts per case; yielding them frees budget for higher\u2011yield technical cases."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines have higher recovery rate; keep attempting them when budget is tight."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.0
+        }
+      },
+      {
+        "index": 8,
+        "cache_key": "1914e256bd7c45e9733b5dd41b2a6fc6a892a8e6aaafe89d8733fb5d737c195b",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines recover ~57% with higher ticket size; keep attempts when budget scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.7,
+              "rationale": "Technical declines recover lower and cost fewer attempts; can yield under scarcity."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.8
+        }
+      },
+      {
+        "index": 9,
+        "cache_key": "aeb9448baeba0604cd5baec7d8dabdbfc30c9b9541e2dfdf1b2f803f9689b3bd",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines often recover but consume more attempts; when budget scarce we prioritize preserving attempts for higher\u2011value cases."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines have higher recovery per attempt; keep attempting them even under scarce budget."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 1,
+          "defer_priority_cutoff": 1.05
+        }
+      },
+      {
+        "index": 10,
+        "cache_key": "3623423e8cb1ee4e232e8d6f2deda77f1d67b5e9d96eb580be1efa84d60bcc45",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines often recover but consume many attempts; lower priority to free budget for higher\u2011yield cases."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines have higher recovery rate with fewer attempts; keep them in the retry pool."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 1,
+          "defer_priority_cutoff": 1.05
+        }
+      },
+      {
+        "index": 11,
+        "cache_key": "3cebdc727186ae2acb3ef158a612635f5b9eb7c5e030fd9f0674d43c796cdf76",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines recover well and have higher ticket size; keep attempts when budget scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.7,
+              "rationale": "Technical declines recover less and cost less; yield when budget scarce to free slots for higher\u2011value cases."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.8
+        }
+      },
+      {
+        "index": 12,
+        "cache_key": "048a5358a7b81bbcd24e283fe9a84bda00c2734239bc6bd6a5625502b2535ba8",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines recover reasonably but use more attempts; when budget is scarce we prioritize preserving attempts for higher\u2011value cases."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines have higher recovery per attempt; keep attempting them even when budget is scarce."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 1,
+          "defer_priority_cutoff": 1.05
+        }
+      },
+      {
+        "index": 13,
+        "cache_key": "c55fca757758f359e438df4221600126a627f4bb2c782edf45e42d193c701d0c",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines often recover but consume more attempts; when budget scarce we prioritize preserving attempts for higher\u2011value cases."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines have higher recovery per attempt; keep attempting them even under scarce budget."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 1,
+          "defer_priority_cutoff": 1.05
+        }
+      },
+      {
+        "index": 14,
+        "cache_key": "e5ab98f6dab2e3617d1e6c962c49a58a3174b291fd09c530577e176a504611a7",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines recover ~57% with higher ticket size; keep attempts when budget scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.6,
+              "rationale": "Technical declines recover lower and cost less; yield when budget scarce to free slots for higher\u2011value cases."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.8
+        }
+      },
+      {
+        "index": 15,
+        "cache_key": "24d2b3e04c2493ea3742abfe7f0683453987988e67ccce82a093e9184b43636a",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines recover ~57% with higher ticket size; keep attempts when budget scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.6,
+              "rationale": "Technical declines recover lower and cost less; yield when budget scarce to free slots for higher\u2011value cases."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.8
+        }
+      },
+      {
+        "index": 16,
+        "cache_key": "a1190b354b07f67d68264611736beaf40a2e1930259f4e0fb497ad1040a6e858",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines recover ~57% with higher ticket size; keep attempts when budget scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.7,
+              "rationale": "Technical declines recover lower and cost fewer attempts; can yield under scarcity."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.8
+        }
+      },
+      {
+        "index": 17,
+        "cache_key": "e57d1e12fac75c2919b6a28054aa999a7c031e84dddb03edede9aff1c36ca631",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 0.8,
+              "rationale": "Soft declines recover less and need more attempts per case; yielding them when budget is scarce frees slots for higher\u2011yield technical cases."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines have higher recovery rate and fewer attempts per case; keep trying them even under scarcity to maximize overall recovery."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 1.0
+        }
+      },
+      {
+        "index": 18,
+        "cache_key": "c053c4d5de16adceef9dcfeee024083f76a4498f7ee89cb9b76169ee7ce43ffe",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.2,
+              "rationale": "Soft declines often recover sizable tickets and have decent recovery; preserving attempts maximizes revenue."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 0.6,
+              "rationale": "Technical declines recover less and cost fewer attempts; yielding them under scarcity frees budget for higher\u2011value cases."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 2,
+          "defer_priority_cutoff": 0.8
+        }
+      },
+      {
+        "index": 19,
+        "cache_key": "23c958757a97c92f920cd75f2ad19914eb16ac8dc5b5d14d8ac39227f51dc212",
+        "schema_valid": true,
+        "sensible": true,
+        "reason": "",
+        "proposal": {
+          "rules": [
+            {
+              "decline_class": "soft",
+              "priority_weight": 1.0,
+              "rationale": "Soft declines have moderate recovery; preserving attempts for higher\u2011yield cases is beneficial when budget is scarce."
+            },
+            {
+              "decline_class": "technical",
+              "priority_weight": 1.2,
+              "rationale": "Technical declines recover best with few attempts; keep them in the queue when budget is tight."
+            }
+          ],
+          "scarcity_remaining_budget_threshold": 1,
+          "defer_priority_cutoff": 1.05
+        }
+      }
+    ],
+    "abstained": true,
+    "abstain_reason": "Rule B: weight_ratio CV=0.359 exceeds MAX_WEIGHT_RATIO_CV=0.3",
+    "total_input_tokens": 20000,
+    "total_output_tokens": 10684
+  }
+}

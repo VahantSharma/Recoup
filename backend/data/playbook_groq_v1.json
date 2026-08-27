@@ -1,0 +1,22 @@
+{
+  "version": "v1-abstained",
+  "synthesized_from_seed": 42,
+  "provider": "groq",
+  "model_id": "openai/gpt-oss-120b",
+  "rules": [
+    {
+      "decline_class": "soft",
+      "priority_weight": 1.0,
+      "rationale": "abstained -- see abstain_reason"
+    },
+    {
+      "decline_class": "technical",
+      "priority_weight": 1.0,
+      "rationale": "abstained -- see abstain_reason"
+    }
+  ],
+  "scarcity_remaining_budget_threshold": 0,
+  "defer_priority_cutoff": 0.0001,
+  "abstained": true,
+  "abstain_reason": "Rule B: weight_ratio CV=0.359 exceeds MAX_WEIGHT_RATIO_CV=0.3"
+}

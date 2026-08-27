@@ -1,0 +1,22 @@
+{
+  "version": "v1-abstained",
+  "synthesized_from_seed": 42,
+  "provider": "gemini",
+  "model_id": "gemini-3.5-flash-lite",
+  "rules": [
+    {
+      "decline_class": "soft",
+      "priority_weight": 1.0,
+      "rationale": "abstained -- see abstain_reason"
+    },
+    {
+      "decline_class": "technical",
+      "priority_weight": 1.0,
+      "rationale": "abstained -- see abstain_reason"
+    }
+  ],
+  "scarcity_remaining_budget_threshold": 0,
+  "defer_priority_cutoff": 0.0001,
+  "abstained": true,
+  "abstain_reason": "Rule B: defer_priority_cutoff CV=1.265 exceeds MAX_CUTOFF_CV=0.3"
+}

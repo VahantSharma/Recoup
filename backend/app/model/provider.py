@@ -14,7 +14,15 @@ from __future__ import annotations
 import os
 from typing import Protocol
 
+from dotenv import load_dotenv
 from pydantic import BaseModel
+
+# Loads the repo-root .env (python-dotenv walks up from cwd to find it, same as
+# every other entry point in this project expects -- see SETUP.md) so
+# GEMINI_API_KEY/GROQ_API_KEY/MODEL_PROVIDER are available without requiring the
+# caller to have sourced .env into the shell first. Harmless if called more than
+# once or if .env doesn't exist (e.g. in CI with real env vars set another way).
+load_dotenv()
 
 
 class TokenUsage(BaseModel):
@@ -44,7 +52,7 @@ def get_provider(name: str | None = None) -> ModelProvider:
     happens inside this function, not at module load time, so importing
     app.model.provider alone (e.g. for the Protocol/TokenUsage types) never pulls in
     a network-capable SDK."""
-    selected = name or os.environ.get("MODEL_PROVIDER", "gemini")
+    selected = name or os.environ.get("MODEL_PROVIDER") or "gemini"
     if selected == "gemini":
         from .gemini_provider import GeminiProvider
         return GeminiProvider()
