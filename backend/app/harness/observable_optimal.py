@@ -79,6 +79,40 @@ class ObservableOptimalParams:
     staleness_penalty_per_day: float
 
 
+def _weight_for(params: ObservableOptimalParams, decline_class: str) -> float:
+    if decline_class == "soft":
+        return params.weight_ratio
+    return 1.0  # 'technical' reference weight; 'hard' never reaches here in practice
+
+
+def should_yield_by_value(
+    params: ObservableOptimalParams, *, decline_class: str, amount_paise: int,
+    attempt_number: int, time_since_failure_days: float, card_attempts_in_window: int,
+) -> bool:
+    """The value-weighted yield decision, factored out so app.harness.oracle's
+    value-maximizing oracle variant can reuse the IDENTICAL allocation mechanism --
+    same scoring rule, only the recoverability information differs between the two
+    callers. Keeping one implementation, not two, is what makes that comparison a
+    clean ceteris-paribus one rather than confounding 'different information' with
+    'independently-fit, possibly-different parameters'. See docs/results.md's Task A2
+    writeup (Problem 1 correction)."""
+    # NETWORK_ATTEMPT_BUDGET_PER_CARD_30D is a real, observable, published policy
+    # constant (not a simulator secret) -- same import every other scarcity-aware
+    # policy in this project uses (see app.harness.policies.ModelPlaybookPolicy).
+    from ..policy_params import NETWORK_ATTEMPT_BUDGET_PER_CARD_30D
+
+    remaining = NETWORK_ATTEMPT_BUDGET_PER_CARD_30D - card_attempts_in_window
+    if remaining > params.scarcity_threshold:
+        return False
+    score = (
+        _weight_for(params, decline_class)
+        + params.ticket_size_bonus * (amount_paise / TICKET_SIZE_REFERENCE_PAISE)
+        - params.attempt_penalty * (attempt_number - 1)
+        - params.staleness_penalty_per_day * time_since_failure_days
+    )
+    return score < params.defer_cutoff
+
+
 class ObservableOptimalPolicy:
     """Conforms to the exact Policy protocol shape -- runs through the unmodified
     app.harness.run.run_arm/run_ablation with zero special-casing, same as every
@@ -90,33 +124,17 @@ class ObservableOptimalPolicy:
     def __init__(self, params: ObservableOptimalParams):
         self.params = params
 
-    def _weight_for(self, decline_class: str) -> float:
-        if decline_class == "soft":
-            return self.params.weight_ratio
-        if decline_class == "technical":
-            return 1.0
-        return 1.0  # 'hard' never reaches here in practice -- the gate stops it regardless
-
     def propose(
         self, case: ObservableCase, history: list, now: datetime, card_attempts_in_window: int,
     ) -> ActionProposal:
-        # NETWORK_ATTEMPT_BUDGET_PER_CARD_30D is a real, observable, published policy
-        # constant (not a simulator secret) -- same import every other scarcity-aware
-        # policy in this project uses (see app.harness.policies.ModelPlaybookPolicy).
-        from ..policy_params import NETWORK_ATTEMPT_BUDGET_PER_CARD_30D
-
-        remaining = NETWORK_ATTEMPT_BUDGET_PER_CARD_30D - card_attempts_in_window
-        if remaining <= self.params.scarcity_threshold:
-            attempt_number = len(history) + 1
-            time_since_failure_days = (now - case.simulated_at).total_seconds() / 86_400
-            score = (
-                self._weight_for(case.decline_class)
-                + self.params.ticket_size_bonus * (case.amount / TICKET_SIZE_REFERENCE_PAISE)
-                - self.params.attempt_penalty * (attempt_number - 1)
-                - self.params.staleness_penalty_per_day * time_since_failure_days
-            )
-            if score < self.params.defer_cutoff:
-                return ActionProposal(action_type="yield_scarce_budget")
+        attempt_number = len(history) + 1
+        time_since_failure_days = (now - case.simulated_at).total_seconds() / 86_400
+        if should_yield_by_value(
+            self.params, decline_class=case.decline_class, amount_paise=case.amount,
+            attempt_number=attempt_number, time_since_failure_days=time_since_failure_days,
+            card_attempts_in_window=card_attempts_in_window,
+        ):
+            return ActionProposal(action_type="yield_scarce_budget")
         return ActionProposal(action_type="retry_payment_link", amount_paise=case.amount)
 
 

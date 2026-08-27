@@ -638,7 +638,7 @@ no bound at all, since it would license exactly the wrong conclusion.
 | # | Claim | Verdict | Evidence |
 |---|---|---|---|
 | 1 | Same rolling-30-day per-card budget as `rules_only` | **PASS** | `OracleUpperBoundPolicy` (`app/harness/oracle.py`) is run through the unmodified `_run_arm_impl` (`app/harness/run.py:199-247`) — `window_count`/`card_attempt_times` are computed identically for every arm; `grep`-confirmed zero references to "oracle" anywhere in `run.py`, `gate.py`, or `policies.py` — no special-casing exists to find. |
-| 2 | Passes through the SAME gate (hard-decline, risk hard-stop, ceiling, break-even; "advice-code stop" is not a separately-named guardrail in `gate.py` — it's subsumed into `hard_decline_stop` via taxonomy classification, confirmed by reading `gate.py`'s actual 8-guardrail list) | **PASS, with the mechanical nuance stated precisely** | For a recoverable case, `oracle.py:67` returns the byte-identical `retry_payment_link` proposal `RulesOnlyPolicy` would, so it reaches `gate_evaluate()` (`run.py:225`) identically — trivially true, same code path. For an unrecoverable case, `oracle.py:66` returns `no_action`, which exits before the gate is ever called (`run.py:222`) — same as `ControlPolicy`'s behavior for every case. This is not a bypass: a hard-decline case has `is_recoverable=False` unconditionally (`p_case_recoverable_bps['hard']=0`), so under `rules_only` it reaches the gate and is rejected by `hard_decline_stop`; under oracle it's never proposed at all. Both paths produce the identical real-world consequence (zero attempts, case does not recover via action) and identical side effects (neither path appends to `card_attempt_times`, since only `gate`-*approved* proposals do — `run.py:247`) — the mechanical route differs, the outcome and the shared resource's state do not. |
+| 2 | Passes through the SAME gate (hard-decline, risk hard-stop, ceiling, break-even; "advice-code stop" is not a separately-named guardrail in `gate.py` — it's subsumed into `hard_decline_stop` via taxonomy classification, confirmed by reading `gate.py`'s actual 8-guardrail list) | **PASS — reasoning corrected on review** | ~~Original (wrong) reasoning: justified only by hard-decline cases, where skipping "costs nothing" since `rules_only` would be gate-rejected anyway.~~ That claim is true for hard declines and **irrelevant to where the oracle's real advantage lives**: a **`soft` or `technical`** case ground truth marks unrecoverable is exactly the case that matters, and `rules_only` does *not* get gate-rejected on it — it's a normal-looking case, the gate approves the retry, and `rules_only` spends a real slot of the shared rolling-30-day card budget attempting it before eventually giving up empty-handed. The oracle (`oracle.py`) skips it before ever proposing, via `no_action` (exits at `run.py:222`, before the gate). **This is not a guardrail bypass — no guardrail is being evaded, since the gate never had a rejection to hand out on a case that would have been approved — but the outcomes are genuinely different, and the side effects are not both zero:** the freed card slot stays available for another case sharing that card. **That budget conservation is not a side detail of the oracle's fairness — it is the entire mechanism of its advantage**, precisely why it's an upper bound and not something `rules_only` could match without the same information. Quantified, not asserted (`scripts/run_bound_decomposition.py`, PROPOSAL_SEED=42): `rules_only` makes 1,672 total attempts, `oracle_upper_bound` makes 1,244 — a **net 428 fewer**. Fully reconciled, both directions: the oracle makes **678 fewer** attempts on specific cases it correctly skips (**646 on `soft`, 32 on `technical`, ~0 on `hard`** — hard cases contribute negligibly, exactly as the corrected reasoning predicts, since they were never going to consume a slot under `rules_only` either), and **250 *more*** attempts on *other* cases sharing those same cards (**202 `soft`, 48 `technical`**) that get to use the freed capacity — `678 − 250 = 428`, matching the net figure exactly. That reallocation, not just the raw skip count, is the mechanism made concrete. |
 | 3 | Measured under CRN, same seeds, same corpus | **PASS, gap in auditability found and fixed** | The original `scripts/run_oracle_headroom.py` relied on `run_arm`'s implicit `use_common_random_numbers=True` default rather than passing it explicitly or printing it in the manifest — functionally correct (the default *is* the fix) but not self-evidently so from the artifact alone, unlike every other Day 4 script's explicit `USE_COMMON_RANDOM_NUMBERS` line. Fixed: the replacement script (`scripts/run_bound_decomposition.py`) passes `use_common_random_numbers=True` explicitly to every `run_arm` call and prints it in the manifest. Re-run after the fix (below); the number did not change, as expected, since the default was already correct — this was an auditability gap, not a correctness bug. |
 | 4 | Ground truth used ONLY for allocation ordering — no extra attempts, no skipped reconciliation, no acting where the gate would refuse | **PASS** | Attempt *success* still goes through the identical `attempt_succeeds()` call (`run.py:174-179`) for every arm — oracle has no path to a guaranteed success. `reconciled_payment={"status": "failed"}` (`run.py:230`) is hardcoded harness-wide, not policy-controllable — no arm, oracle included, can skip it. Gate rejections are handled identically (§2). Independently tested, not just argued: `test_oracle_never_attempts_a_provably_unrecoverable_case` and `test_oracle_recovered_set_is_a_superset_of_rules_onlys` (`tests/test_oracle_upper_bound.py`). |
 
@@ -646,7 +646,7 @@ All four pass. The oracle is a fair bound on the SAME compliant problem `rules_o
 solves — differing only in whether it knows a case's true recoverability before
 deciding to spend a shared card's scarce budget on it.
 
-#### Task A2 — the oracle alone is a LOOSE bound; decomposed into two gaps with distinct meanings
+#### Task A2 — the oracle alone is a LOOSE bound; decomposed, with objective parity enforced
 
 Stated plainly, per the audit's own honesty standard: the oracle reads the
 simulator's ground truth, which no production policy can ever do. `oracle -
@@ -674,54 +674,119 @@ winner: weight_ratio=0.33  scarcity_threshold=2  defer_cutoff=1.0
         ticket_size_bonus=0.5  attempt_penalty=0.0  staleness_penalty_per_day=0.05
 ```
 
-**Three-way result, PROPOSAL_SEED=42 (n=1200+1):**
+**Objective-parity check, done first, per review (the check that decides whether GAP 2
+is a real finding or an artifact):** `OracleUpperBoundPolicy` does **not** maximize net
+value. Stated explicitly in its own docstring now, `app/harness/oracle.py`: among cases
+it knows are recoverable, it applies **no value-weighting at all** — every recoverable
+case is attempted, first-come, identically to `RulesOnlyPolicy`'s own ordering. Its
+only decision is the perfect-information filter (skip iff truly unrecoverable).
+Comparing it to `observable_optimal` (explicitly fit to maximize net value) on a
+*rate* metric would measure an objective mismatch, not an information gap. Fixed with
+a second oracle variant, `OracleValueMaximizingPolicy`: identical perfect-recoverability
+filter, **plus** the identical value-weighted yield rule `observable_optimal` uses
+(`should_yield_by_value`, imported not reimplemented — one shared implementation, so
+the two callers differ only in *information*, never in *mechanism or fitted
+parameters*). Both variants are run and reported below; each table uses the ceiling
+matched to its own metric as the primary chain, with the other variant shown as a
+labeled cross-check, never dropped.
 
-| Arm | Recovery rate | Net value |
+**Metric-shopping check, done second, per review:** the two gaps below are published
+as two *complete* tables — recovery rate and net value, all four arms, held-out CIs
+throughout — never one gap in whichever unit flatters it. **The two tables disagree
+about whether `observable_optimal` is an improvement over `rules_only`, and that
+disagreement is the finding**, not resolved by picking one.
+
+**TABLE 1 — recovery rate** (chain: `rules_only → observable_optimal → oracle_upper_bound`)
+
+| Arm | PROPOSAL_SEED rate | Held-out mean rate | Held-out stdev |
+|---|---|---|---|
+| `rules_only` | 52.206% | 53.322% | 0.0102 |
+| `observable_optimal` (analysis only) | 50.458% | 51.665% | 0.0112 |
+| `oracle_upper_bound` (analysis only) | 61.199% | 61.124% | 0.0080 |
+| `oracle_value_maximizing` (analysis only, cross-check) | 57.036% | 57.685% | 0.0094 |
+
+GAP 1 (`observable_optimal − rules_only`): **−0.0175** in-sample (95% CI
+[−0.0308, −0.0050]), **−0.0058 to −0.0266 at every one of the 10 held-out seeds** —
+consistently negative, never crossing zero. On recovery rate, `observable_optimal` is
+a **worse** policy than `rules_only`, full stop.
+GAP 2 (`oracle_upper_bound − observable_optimal`): **+0.1074** in-sample, **+0.0808 to
++0.1082** held-out (mean +0.0946) — large, robust, never near zero.
+Additive identity holds exactly at every seed: `GAP1 + GAP2 = oracle_upper_bound −
+rules_only` (e.g. seed 42: −0.0175 + 0.1074 = +0.0899, matching the direct figure to
+four decimals; verified programmatically at all 11 points, not spot-checked).
+
+**TABLE 2 — net value** (chain: `rules_only → observable_optimal → oracle_value_maximizing`)
+
+| Arm | PROPOSAL_SEED net value | Held-out mean net value |
 |---|---|---|
-| `rules_only` | 52.206% | ₹8,14,685.52 |
-| `observable_optimal` (analysis only) | 50.458% | ₹8,33,899.54 |
-| `oracle_upper_bound` (analysis only) | 61.199% | ₹9,23,089.03 |
+| `rules_only` | ₹8,14,685.52 | ₹8,34,556.64 |
+| `observable_optimal` (analysis only) | ₹8,33,899.54 | ₹8,54,834.85 |
+| `oracle_value_maximizing` (analysis only, cross-check) | ₹9,16,712.36 | ₹9,28,900.60 |
+| `oracle_upper_bound` (analysis only) | ₹9,23,089.03 | ₹9,36,760.17 |
 
-**GAP 1 — `observable_optimal − rules_only` = value left on the table using
-information already available (real, but not the metric you'd guess):**
-rate_lift **−0.0175** (95% CI [−0.0308, −0.0050]) — recovers *fewer* cases — but gross
-recovered-amount lift **+₹19,191.94** (95% CI [₹120.30, ₹41,093.44]) and net value
-**+₹19,214.02**, because it recovers **fewer, bigger** tickets at **fewer total
-attempts**. Diagnosed directly, not inferred: at this seed, `observable_optimal`
-recovers 606 cases (avg ticket ₹1,376) at 1,480 attempts and 296 explicit yields;
-`rules_only` recovers 627 cases (avg ticket ₹1,300) at 1,672 attempts and zero yields.
-It was fit to maximize *net value* (same objective as the grid search, not recovery
-rate), and it does — by reallocating scarce card slots away from smaller, staler,
-marginal cases toward higher-ticket ones. **Held out across all 10 seeds: the net-
-value-relevant gross-amount lift is positive in 9/10 seeds** (mean +₹20,255.88) — a
-real, generalizing, economically coherent tradeoff, not an in-sample fitting artifact.
-This is genuine headroom `rules_only` leaves on the table using information it already
-has, and it names exactly what a v2 schema would need to key on if this were ever
-pursued: ticket size and case staleness, neither of which `PlaybookProposal` currently
-carries.
+GAP 1 (`observable_optimal − rules_only`): **+₹19,214.02** in-sample, **positive at 10
+of the 11 points** (all 10 held-out seeds but one — seed 303 shows −₹1,812.14, a small
+loss; every other seed and the in-sample point are positive, mean held-out gap
+≈+₹20,300). On net value, `observable_optimal` is a **better** policy than
+`rules_only`, almost everywhere.
+GAP 2 (`oracle_value_maximizing − observable_optimal`): **+₹82,812.82** in-sample,
+positive at every point held out.
+Additive identity holds exactly here too (e.g. seed 42: ₹19,214.02 + ₹82,812.82 =
+₹1,02,026.84, matching the direct `oracle_value_maximizing − rules_only` figure to the
+paise at all 11 points).
 
-**GAP 2 — `oracle − observable_optimal` = the irreducible gap (information no real
-system has, and cannot get):**
-rate_lift **+0.1074** (95% CI [+0.0899, +0.1257]) in-sample, **+0.0808 to +0.1082
-across all 10 held-out seeds** (mean +0.0946, stdev 0.0084) — never near zero, never
-crossing into noise, larger and at least as tight as the oracle-vs-`rules_only` gap
-reported before this decomposition existed. Reading: **most of the oracle's headroom
-is NOT reachable through better use of observable signals** — it is specifically the
-value of knowing, with certainty, that a case can never recover, which no amount of
-clever feature engineering on `decline_class`/ticket size/attempt history/staleness
-can substitute for. This is the honest ceiling on anything built on the
-yield-at-scarcity mechanism, model or otherwise.
+**The two tables disagree, and that disagreement is the finding.** Recovering fewer,
+larger, cheaper-to-serve cases is worse on recovery rate and better on net value —
+diagnosed directly at PROPOSAL_SEED, not inferred: `observable_optimal` recovers 606
+cases (avg ticket ₹1,376) at 1,480 attempts and 296 explicit yields; `rules_only`
+recovers 627 cases (avg ticket ₹1,300) at 1,672 attempts and zero yields. **This is a
+direct, empirical demonstration of why CLAUDE.md refuses gross recovery as a headline
+metric**, one level up from where that rule was first written: two defensible
+objectives rank the *same policy* in opposite directions on the *same data*, and which
+one to optimize is a business decision, not a technical one that this project gets to
+make unilaterally.
+
+**A further nuance, worth stating rather than hiding, since it complicates the neat
+"value-matched ceiling" framing above:** `oracle_value_maximizing` scores *lower* on
+net value than the plain `oracle_upper_bound` (₹9,16,712.36 vs ₹9,23,089.03 in-sample,
+and at every held-out seed). This is not a bug — `oracle_value_maximizing` reuses
+`observable_optimal`'s parameters *as fit for a world with no recoverability
+information*, where yielding on a marginal-looking case is a hedge against wasting an
+attempt on one that might be hopeless. Once true recoverability is already known (as
+it is for both oracle variants), every case still under consideration is *guaranteed*
+recoverable — so that same hedge has nothing left to protect against, and reusing it
+can only cost value, never add it. **`oracle_value_maximizing`, as constructed, is
+therefore a *lower bound* on the true net-value-maximizing ceiling under perfect
+information, not the ceiling itself** — an independently-fit value-maximizing oracle
+would do at least as well as `oracle_upper_bound`'s own number (923,089.03), since it
+remains free to learn "never yield beyond the recoverability filter" if that turns out
+to be optimal, which this result suggests it may already be. Consistent with, and a
+second independent confirmation of, the original CRN grid-search finding that
+voluntary yielding never beat the functional no-op anywhere in the swept space.
+
+**Problem 4 — `observable_optimal`'s own overfitting check, on the metric it was
+actually fit on (net value, not gross amount):** in-sample net value **₹8,33,899.54**;
+held-out mean **₹8,54,834.85** (stdev ₹54,439.94, min ₹7,17,734.82, max ₹9,22,029.67 —
+figures from the real run, `scripts.run_bound_decomposition`). **The held-out mean is *higher* than the in-sample point**
+— the fit does not overfit in the direction that would matter (it wasn't "lucky" on
+PROPOSAL_SEED and disappointing elsewhere); if anything PROPOSAL_SEED=42 was a
+mildly *harder* draw for this policy than the held-out average. With 600 points fit on
+one seed this needed to be checked, not assumed, and checking it produced a reassuring
+answer rather than a concerning one.
 
 **What this decomposition licenses, precisely:** the Day 4 null is **explained, not
-excused**. `observable_optimal ≉ rules_only` (a real gap exists on available
-features) — so the frozen 3-parameter playbook was too narrow to reach even the
-reachable headroom, and the mechanism (a single global scarcity threshold + a
-per-class weight, no ticket-size or staleness signal) is the specific, named reason
-why. Simultaneously, most of the oracle's larger headroom is provably unreachable by
-any observable-feature policy at all — so a hypothetical model arm's null result
-would not, by itself, indict the model: the ceiling it was ever able to reach is
-`observable_optimal`, materially below `oracle`, for structural reasons that have
-nothing to do with model quality.
+excused**, on the metric it was actually about (net value, `observable_optimal`'s own
+fit objective): real, reachable headroom exists on available features
+(`observable_optimal ≠ rules_only` in net value, robustly), so the frozen
+3-parameter playbook was too narrow to reach it, and the specific missing signals are
+named — ticket size and case staleness, neither of which `PlaybookProposal` carries.
+On *recovery rate*, the opposite holds — `observable_optimal` is worse, not better —
+which is itself the correct, expected consequence of optimizing a different objective,
+not a contradiction. Simultaneously, most of `oracle_value_maximizing`'s further
+headroom over `observable_optimal` (GAP 2, Table 2) is provably unreachable by any
+observable-feature policy using this mechanism — the honest ceiling on anything built
+on yield-at-scarcity, model or otherwise, whichever single metric a future v2
+ultimately optimizes for.
 
 ### Provider-agnostic, tested at the exact place it breaks
 
