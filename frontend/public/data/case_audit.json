@@ -1,0 +1,590 @@
+{
+  "schema_name": "case_audit",
+  "schema_version": "1.0.0",
+  "manifest": {
+    "git_sha": "af984dbc6ab992e484981e16397ecdd4b572e355",
+    "script": "scripts/export_case_audit.py",
+    "schema_name": "case_audit",
+    "schema_version": "1.0.0",
+    "generated_at": "2026-08-27T16:07:43.241232Z",
+    "seed": 42,
+    "corpus_hash": "0ecf54b7d99d3fed37155c7ab7dd35952adf951400808b29c26dc19948d0e777",
+    "policy_params": {
+      "COST_PER_CONTACT_ATTEMPT_MILLI_PAISE": 11500,
+      "ATTEMPT_DECAY_FACTOR": 0.7,
+      "AMOUNT_CEILING_PAISE": 500000,
+      "NETWORK_ATTEMPT_BUDGET_PER_CARD_30D": 6,
+      "RECONCILE_FRESHNESS_WINDOW_SECONDS": 300,
+      "POLICY_PRIOR_RECOVERY_RATE_BPS": {
+        "hard": 0,
+        "soft": 5500,
+        "technical": 5500
+      }
+    },
+    "simulator_params": {
+      "ORGANIC_RECOVERY_RATE_BPS": {
+        "hard": 0,
+        "soft": 2500,
+        "technical": 2500
+      },
+      "P_CASE_RECOVERABLE_BPS": {
+        "hard": 0,
+        "soft": 8000,
+        "technical": 9000
+      },
+      "SIM_TRUE_RECOVERY_RATE_BPS": {
+        "hard": 0,
+        "soft": 5500,
+        "technical": 5500
+      }
+    },
+    "use_common_random_numbers": true
+  },
+  "data": {
+    "default_case_id": "pay_TSv8WoMc4OAEGG",
+    "cases": [
+      {
+        "case_id": "pay_TSv8WoMc4OAEGG",
+        "case_kind": "corpus",
+        "crafted_note": null,
+        "decline_class": "soft",
+        "decline_class_source": "harvested",
+        "error_code": "BAD_REQUEST_ERROR",
+        "error_reason": "payment_failed",
+        "error_description": "Payment failed",
+        "amount_paise": 10000,
+        "gate_calls": [
+          {
+            "attempt_number": 1,
+            "at": "2026-01-01T00:00:00Z",
+            "proposal_action_type": "retry_payment_link",
+            "proposal_amount_paise": 10000,
+            "decision": "approved",
+            "reason": "permitted",
+            "route_to": null,
+            "idempotency_key": "21c09cba48894baf8170f6bc4322e0c5593727674f503f9b07adafdb50c25bc0",
+            "guardrail_table": [
+              {
+                "name": "stale_reconcile",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "unclassifiable_decline_human_review",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "hard_decline_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "risk_hard_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "already_resolved",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "amount_ceiling_needs_signoff",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "network_attempt_budget_exhausted",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "break_even_floor",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "final_status": "recovered",
+        "route_to": null,
+        "outcome": "recovered"
+      },
+      {
+        "case_id": "pay_synth_fd757360b659b98e",
+        "case_kind": "corpus",
+        "crafted_note": null,
+        "decline_class": "soft",
+        "decline_class_source": "documented",
+        "error_code": null,
+        "error_reason": "transaction_limit_exceeded",
+        "error_description": null,
+        "amount_paise": 100946,
+        "gate_calls": [
+          {
+            "attempt_number": 1,
+            "at": "2026-01-28T19:30:51.510413Z",
+            "proposal_action_type": "retry_payment_link",
+            "proposal_amount_paise": 100946,
+            "decision": "rejected",
+            "reason": "network_attempt_budget_exhausted",
+            "route_to": null,
+            "idempotency_key": "3d143d24f2de02b125cd044010e507bf29cde380d2c08c94142cb6884845cda0",
+            "guardrail_table": [
+              {
+                "name": "stale_reconcile",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "unclassifiable_decline_human_review",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "hard_decline_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "risk_hard_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "already_resolved",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "amount_ceiling_needs_signoff",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "network_attempt_budget_exhausted",
+                "evaluated": true,
+                "fired": true,
+                "note": ""
+              },
+              {
+                "name": "break_even_floor",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at network_attempt_budget_exhausted"
+              }
+            ]
+          }
+        ],
+        "final_status": "recovered",
+        "route_to": null,
+        "outcome": "recovered"
+      },
+      {
+        "case_id": "pay_synth_b9c279e145616842",
+        "case_kind": "corpus",
+        "crafted_note": null,
+        "decline_class": "hard",
+        "decline_class_source": "documented",
+        "error_code": null,
+        "error_reason": "debit_instrument_blocked",
+        "error_description": null,
+        "amount_paise": 174656,
+        "gate_calls": [
+          {
+            "attempt_number": 1,
+            "at": "2026-01-19T07:59:04.647678Z",
+            "proposal_action_type": "retry_payment_link",
+            "proposal_amount_paise": 174656,
+            "decision": "rejected",
+            "reason": "hard_decline_stop",
+            "route_to": null,
+            "idempotency_key": "25b67bd2955b58f232292c00e03e90015d7e974cb3ac5ce6b7510e7b5b48bb8a",
+            "guardrail_table": [
+              {
+                "name": "stale_reconcile",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "unclassifiable_decline_human_review",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "hard_decline_stop",
+                "evaluated": true,
+                "fired": true,
+                "note": ""
+              },
+              {
+                "name": "risk_hard_stop",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at hard_decline_stop"
+              },
+              {
+                "name": "already_resolved",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at hard_decline_stop"
+              },
+              {
+                "name": "amount_ceiling_needs_signoff",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at hard_decline_stop"
+              },
+              {
+                "name": "network_attempt_budget_exhausted",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at hard_decline_stop"
+              },
+              {
+                "name": "break_even_floor",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at hard_decline_stop"
+              }
+            ]
+          }
+        ],
+        "final_status": "gave_up_gate_rejected",
+        "route_to": null,
+        "outcome": "not_recovered"
+      },
+      {
+        "case_id": "pay_synth_2a465d136da49613",
+        "case_kind": "corpus",
+        "crafted_note": null,
+        "decline_class": "soft",
+        "decline_class_source": "documented",
+        "error_code": null,
+        "error_reason": "insufficient_funds",
+        "error_description": null,
+        "amount_paise": 565201,
+        "gate_calls": [
+          {
+            "attempt_number": 1,
+            "at": "2026-01-05T10:22:31.641433Z",
+            "proposal_action_type": "retry_payment_link",
+            "proposal_amount_paise": 565201,
+            "decision": "rejected",
+            "reason": "amount_ceiling_needs_signoff",
+            "route_to": "NEEDS_REVIEW",
+            "idempotency_key": "d58d781dcff0913fd604c8b4f06f91e0835d2643528ac919726cd13a535f6022",
+            "guardrail_table": [
+              {
+                "name": "stale_reconcile",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "unclassifiable_decline_human_review",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "hard_decline_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "risk_hard_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "already_resolved",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "amount_ceiling_needs_signoff",
+                "evaluated": true,
+                "fired": true,
+                "note": ""
+              },
+              {
+                "name": "network_attempt_budget_exhausted",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at amount_ceiling_needs_signoff"
+              },
+              {
+                "name": "break_even_floor",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at amount_ceiling_needs_signoff"
+              }
+            ]
+          }
+        ],
+        "final_status": "gave_up_gate_rejected",
+        "route_to": "NEEDS_REVIEW",
+        "outcome": "deferred_to_human_review"
+      },
+      {
+        "case_id": "pay_synth_aca2b1996e50a741",
+        "case_kind": "corpus",
+        "crafted_note": null,
+        "decline_class": "unknown",
+        "decline_class_source": "unknown",
+        "error_code": null,
+        "error_reason": "unrecognized_reason_81074756",
+        "error_description": null,
+        "amount_paise": 110339,
+        "gate_calls": [
+          {
+            "attempt_number": 1,
+            "at": "2026-01-05T03:44:09.765321Z",
+            "proposal_action_type": "retry_payment_link",
+            "proposal_amount_paise": 110339,
+            "decision": "rejected",
+            "reason": "unclassifiable_decline_human_review",
+            "route_to": "NEEDS_REVIEW",
+            "idempotency_key": "49608177ffcd20ea4068cd435ed6b8fc4507c091391581324754a70d881e665c",
+            "guardrail_table": [
+              {
+                "name": "stale_reconcile",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "unclassifiable_decline_human_review",
+                "evaluated": true,
+                "fired": true,
+                "note": ""
+              },
+              {
+                "name": "hard_decline_stop",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at unclassifiable_decline_human_review"
+              },
+              {
+                "name": "risk_hard_stop",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at unclassifiable_decline_human_review"
+              },
+              {
+                "name": "already_resolved",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at unclassifiable_decline_human_review"
+              },
+              {
+                "name": "amount_ceiling_needs_signoff",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at unclassifiable_decline_human_review"
+              },
+              {
+                "name": "network_attempt_budget_exhausted",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at unclassifiable_decline_human_review"
+              },
+              {
+                "name": "break_even_floor",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at unclassifiable_decline_human_review"
+              }
+            ]
+          }
+        ],
+        "final_status": "gave_up_gate_rejected",
+        "route_to": "NEEDS_REVIEW",
+        "outcome": "deferred_to_human_review"
+      },
+      {
+        "case_id": "pay_synth_e45e924acf59735b",
+        "case_kind": "corpus",
+        "crafted_note": null,
+        "decline_class": "soft",
+        "decline_class_source": "documented",
+        "error_code": null,
+        "error_reason": "payment_declined",
+        "error_description": null,
+        "amount_paise": 1500368,
+        "gate_calls": [
+          {
+            "attempt_number": 1,
+            "at": "2026-01-22T14:21:32.240019Z",
+            "proposal_action_type": "retry_payment_link",
+            "proposal_amount_paise": 1500368,
+            "decision": "rejected",
+            "reason": "risk_hard_stop",
+            "route_to": "NEEDS_REVIEW",
+            "idempotency_key": "74e97fd90b85b68bfb669f7ba9a0d27d8d7e9c1c06a3203f5be0c70568d9db5c",
+            "guardrail_table": [
+              {
+                "name": "stale_reconcile",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "unclassifiable_decline_human_review",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "hard_decline_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "risk_hard_stop",
+                "evaluated": true,
+                "fired": true,
+                "note": ""
+              },
+              {
+                "name": "already_resolved",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at risk_hard_stop"
+              },
+              {
+                "name": "amount_ceiling_needs_signoff",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at risk_hard_stop"
+              },
+              {
+                "name": "network_attempt_budget_exhausted",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at risk_hard_stop"
+              },
+              {
+                "name": "break_even_floor",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at risk_hard_stop"
+              }
+            ]
+          }
+        ],
+        "final_status": "gave_up_gate_rejected",
+        "route_to": "NEEDS_REVIEW",
+        "outcome": "deferred_to_human_review"
+      },
+      {
+        "case_id": "crafted-break_even_floor",
+        "case_kind": "crafted",
+        "crafted_note": "break_even_floor is real and independently unit-tested (tests/test_gate.py), but does not bind anywhere in this corpus's ticket-size distribution -- it only fires at the last reachable attempt (6) for a payment near Rs 1, per docs/results.md's cost_per_contact_attempt_milli_paise finding. This case is a crafted illustration of that finding, not a case drawn from the corpus.",
+        "decline_class": "soft",
+        "decline_class_source": "documented",
+        "error_code": null,
+        "error_reason": null,
+        "error_description": null,
+        "amount_paise": 100,
+        "gate_calls": [
+          {
+            "attempt_number": 6,
+            "at": "2026-01-01T00:00:00Z",
+            "proposal_action_type": "retry_payment_link",
+            "proposal_amount_paise": 100,
+            "decision": "rejected",
+            "reason": "break_even_floor",
+            "route_to": "NOT_WORKED",
+            "idempotency_key": "6b5ed48c53e9624ccdd85427163ec0eef6637298213ed0b60336af79bcff57fd",
+            "guardrail_table": [
+              {
+                "name": "stale_reconcile",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "unclassifiable_decline_human_review",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "hard_decline_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "risk_hard_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "already_resolved",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "amount_ceiling_needs_signoff",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "network_attempt_budget_exhausted",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "break_even_floor",
+                "evaluated": true,
+                "fired": true,
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "final_status": "gave_up_gate_rejected",
+        "route_to": "NOT_WORKED",
+        "outcome": "not_recovered"
+      }
+    ],
+    "structurally_unreachable_guardrails": [
+      {
+        "name": "stale_reconcile",
+        "why": "harness always calls gate.evaluate() with reconciled_at == now (age_seconds == 0 always) -- this guardrail guards a real production race (a stale local read vs. Razorpay's live state) that has no analog when the harness IS the live state. Acceptable: independently unit-tested (test_gate.py); simulating staleness would mean deliberately feeding the gate a wrong 'now', which tests the guardrail in isolation better than a corpus-level fluke would."
+      },
+      {
+        "name": "already_resolved",
+        "why": "structurally distinct from stale_reconcile, not the same reason restated: reconciled_payment is hardcoded to {'status': 'failed'} for every gate call, AND the event queue is a strict chronological min-heap, so any case whose true organic resolution has already occurred by 'now' has already had its ORGANIC event processed (which sets recovered=True and halts all further events for that case) before any later-timed gate call could ever be reached. The harness cannot construct a case that reaches the gate with a stale 'failed' status after it has actually resolved -- not because reconcile is fresh, but because a resolved case never reaches another gate call at all. Acceptable for the same reason stale_reconcile is: independently unit-tested (test_gate.py), and it guards a real production race with no analog in a single-threaded, chronologically-ordered simulation."
+      }
+    ]
+  }
+}
