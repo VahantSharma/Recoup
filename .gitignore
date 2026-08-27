@@ -26,6 +26,9 @@ logs/
 # playbook_*.json files are real, tracked data and must stay tracked.
 backend/data/model_cache/
 
+# playwright MCP screenshots/snapshots -- session-local verification artifacts, not deliverables
+.playwright-mcp/
+
 # os / editor
 .DS_Store
 .vscode/*
