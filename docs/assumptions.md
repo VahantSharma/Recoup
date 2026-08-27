@@ -426,6 +426,73 @@ secondary blog, not Visa's own primary publication, so directional not authorita
 
 ---
 
+## Day 4 — model-layer parameters and analysis-only arms
+
+### use_common_random_numbers
+Value: `True`, default everywhere (`app.harness.run.run_arm`/`run_ablation`,
+`app.harness.sweep`'s `_run_point`/`oat_sweep`/`joint_random_sweep`). `False`
+reproduces the exact pre-fix behavior — kept runnable in exactly one place
+(`tests/test_null_arm_lift_is_zero.py`) to measure the old noise floor directly, and
+in the explicit old-vs-new comparison scripts (`run_day3_headline_crn_recheck.py`,
+`run_day3_sweep_crn_recheck.py`, `run_bound_decomposition.py`'s Fix-1/Fix-2
+diagnostics) — never as the source of a reported result.
+Source: NOT empirical — an engineering-methodology knob, not a sourced or swept
+business parameter, so it lives here as a register entry rather than in
+`app.harness.sweep.PARAM_SPECS`.
+Used by: `app.simulator.outcomes.attempt_succeeds` — controls whether the per-attempt
+success draw's RNG seed includes `arm` (`False`, the found-and-fixed bug) or omits it
+(`True`, correct common random numbers). See `docs/results.md`'s "Common random
+numbers" section for the full incident writeup — kept in as a worked example of this
+project's own verification discipline, same as the fabricated-citation and 100×
+unit-conversion incidents already on record above.
+
+### scarcity_remaining_budget_threshold / defer_priority_cutoff
+Value: per-playbook policy knobs, not independently sourced — same footing as
+`amount_ceiling_paise` above. Range for the grid search / observable-optimal search:
+`scarcity_remaining_budget_threshold ∈ {0, 1, 2}`, `defer_priority_cutoff ∈
+{0.4, 0.7, 1.0, 1.5, 2.5}` — see `app.model.grid_search`/`app.harness.
+observable_optimal`'s own `*_GRID` constants, which are the authoritative, current
+values (not duplicated here to avoid the two ever drifting apart).
+Source: NOT empirical — the same class of engineering/policy knob as
+`amount_ceiling_paise` and `reconcile_freshness_window_seconds`.
+Used by: `app.harness.policies.ModelPlaybookPolicy`, `app.harness.observable_optimal.
+should_yield_by_value`, `app.harness.oracle.OracleValueMaximizingPolicy` — the
+yield-at-scarcity decision, per-playbook.
+
+### The two analysis-only arms — not policy parameters, but not submittable either
+`app.harness.oracle.OracleUpperBoundPolicy` / `OracleValueMaximizingPolicy` and
+`app.harness.observable_optimal.ObservableOptimalPolicy` are **measurement
+instruments, never candidates to ship.** Flagged here, in the register that exists to
+catch anything used-in-code-without-a-citation, precisely because their *inputs*
+otherwise look like ordinary policy parameters (weights, thresholds, a ticket-size
+bonus) and could be mistaken for tunable product knobs if encountered out of context:
+
+- **`oracle_upper_bound`** reads `app.simulator`'s ground-truth recoverability
+  directly (`draw_ground_truth`) — structurally impossible for any real policy, which
+  is the entire point. Its only decision is a hard filter (skip iff provably
+  unrecoverable); no value-weighting.
+- **`oracle_value_maximizing`** adds the identical value-weighting mechanism
+  `observable_optimal` uses, but fit under perfect information
+  (`app.harness.oracle.run_oracle_value_maximizing_search`) — a second, independent
+  fit, not a parameter reuse (see `docs/results.md`'s Fix 1 for why reusing
+  `observable_optimal`'s params here was wrong and how it was caught).
+- **`observable_optimal`** reads only features a real system has at decision time
+  (`decline_class`, ticket size, attempt number, card contention, time since
+  failure) — it imports nothing from `app.simulator` (structurally enforced,
+  `tests/test_observable_optimal.py::test_never_touches_app_simulator`) and *could*
+  in principle be wired up as a real policy, but is deliberately kept out of
+  `app.harness.policies` and never evaluated as a ship candidate — an analysis bound
+  on what the *frozen* `PlaybookProposal` schema's mechanism could reach, not a
+  proposal to widen that schema.
+
+None of the three is exempt from the money-action safety rules by virtue of being
+analysis-only — they run through the identical, unmodified `app.gate.evaluate()` and
+the identical rolling-30-day card-budget accounting as every submittable arm (Task A's
+audit, `docs/results.md`). "Analysis-only" describes *why the numbers are reported*
+(a ceiling, not a candidate), never a relaxation of *how the numbers are produced*.
+
+---
+
 ## Sensitivity sweep results
 
 Moved to **`docs/results.md`** — a sweep produces results, not parameters, and this

@@ -585,6 +585,11 @@ the fix, meaning most of it is a real effect of the parameters, not noise.
 
 ### Held-out ablation — harness proven end-to-end, `tuned_weights` result real, `rules_plus_model` still placeholder
 
+**Superseded by the "Bake-off, synthesis, real `rules_plus_model` result" subsection
+below, which has the real 8-arm result** — kept here, unedited, as the placeholder-
+first proof this subsection always was (Amendment 5), not a currently-reportable
+figure for `rules_plus_model`.
+
 ```
 cd backend && python -m scripts.run_day4_ablation
 held_out_seeds = [101, 202, 303, 404, 505, 606, 707, 808, 909, 943]   (n=1200/seed)
@@ -972,13 +977,103 @@ parameter space, rarely under Visa's lighter one.
 
 ### Bake-off, synthesis, real `rules_plus_model` result
 
-Not yet run. Will run under the now-fixed, correctly-paired harness
-(`use_common_random_numbers=True`, the default) from the start — no bake-off or
-synthesis figure has ever been computed under the pre-fix seeding. This subsection
-will report the three-column bake-off table (schema validity, sensibility, held-out
-lift) for both providers, name the winner on that combined picture, and replace every
-placeholder-labeled figure above with the real one — per CLAUDE.md, no figure is
-written here before the run that produced it.
+Run for real, under the fixed, correctly-paired harness throughout (`scripts.
+run_day4_bakeoff`, then `scripts.synthesize_playbook`). The Phase-B abstention rule
+(pre-registered before either script ran — see its own subsection above) was applied
+**mechanically**: the three checks were computed, the values reported, and the rule
+decided. No judgment was exercised about whether abstention "should" fire.
+
+```
+git_sha (bake-off) = 26dee64a5b3c08747dd28ec0376875e3b0df3bb7
+proposal_seed = 42, n_calls_per_provider = 20, temperature = 0
+```
+
+| Provider | Model ID | Schema-valid | Sensible | Abstained? |
+|---|---|---|---|---|
+| `gemini` | `gemini-3.5-flash-lite` | 20/20 | 20/20 | **Yes** — Rule B: `defer_priority_cutoff` CV = 1.265, exceeds 0.30 |
+| `groq` | `openai/gpt-oss-120b` | 20/20 | 20/20 | **Yes** — Rule B: `weight_ratio` CV = 0.359, exceeds 0.30 |
+
+**Both providers abstained.** Both are perfectly reliable on the two columns that
+measure engineering quality — 20/20 schema-valid, 20/20 individually sensible, on
+every single call, for both providers — and both fail the pre-registered dispersion
+check anyway, on a different one of the three free parameters each: Gemini is
+consistent on the weight ratio and the scarcity threshold but scatters wildly on
+`defer_priority_cutoff` (CV 1.265, over 4× the 0.30 bound); Groq is consistent on the
+cutoff and threshold but scatters just past the bound on the weight ratio (0.359 vs
+0.30 — a narrow miss, not a wild one). **Schema validity and sensibility were never
+going to be the informative columns here, and they weren't** — every call from both
+providers individually looked reasonable; what the 20-call repetition exposed is that
+neither provider *converges* to a consistent story about the same aggregate-statistics
+prompt, temperature 0 notwithstanding. Per the abstention rule's own design, this is
+a clean, reportable result, not a failure of the bake-off.
+
+**Consequence, per the pre-registered fallback:** both `rules_plus_model_gemini` and
+`rules_plus_model_groq` fall back to `RulesOnlyPolicy`-identical behavior (weight
+1.0 for both classes, never yields) — no synthesis call was made for either provider
+(`scripts.synthesize_playbook` detected the abstention and applied the fallback
+mechanically, logged plainly, zero tokens spent on an official call). Both committed
+playbooks (`data/playbook_gemini_v1.json`, `data/playbook_groq_v1.json`) are marked
+`"version": "v1-abstained"`, `"abstained": true`, with the exact triggering value in
+`abstain_reason`.
+
+**Reading, stated plainly per the pre-registered grid-search-vs-model framing above:**
+this is not "the model failed" — it is the abstention mechanism doing exactly its
+designed job. Both model arms are therefore expected to land at, or extremely close
+to, `rules_only`'s own numbers — not because either LLM found the same near-optimal
+allocation the grid search found (the `model ≈ grid_search` case that framing called
+"notable"), but because both correctly triggered the pre-registered fallback instead
+of shipping an inconsistent allocation rule. Held-out ablation numbers below confirm
+this directly.
+
+**Three-column bake-off table, winner named on the combined picture, not on parse rate:**
+
+| Provider | Schema validity | Sensibility | Held-out lift vs `rules_only` (rate) |
+|---|---|---|---|
+| `gemini` | 20/20 | 20/20 | **exactly +0.0000 at all 10 held-out seeds** (abstained → `rules_only`-identical) |
+| `groq` | 20/20 | 20/20 | **exactly +0.0000 at all 10 held-out seeds** (abstained → `rules_only`-identical) |
+
+**No winner is named, because there is nothing to distinguish them on**: both
+providers are perfectly reliable, both correctly abstain, both fall back to the
+identical behavior, both produce the identical held-out lift (0.0000, CI a point, at
+every one of the 10 seeds — `scripts.run_day4_ablation`'s real output, not asserted).
+A three-column table exists precisely to prevent declaring a winner on schema validity
+alone; here it also prevents declaring one on anything at all, honestly, since neither
+provider gives the table a reason to.
+
+**Final held-out ablation, all 8 arms, real files, real run
+(`scripts.run_day4_ablation`):**
+
+```
+git_sha = 26dee64a5b3c08747dd28ec0376875e3b0df3bb7
+```
+
+| Arm | Held-out mean rate lift vs `rules_only` | Positive in |
+|---|---|---|
+| `tuned_weights` | +0.0000 (stdev 0.0000) | 0/10 (exactly tied, not behind) |
+| `rules_plus_model_gemini` | +0.0000 (stdev 0.0000) | 0/10 (exactly tied, not behind) |
+| `rules_plus_model_groq` | +0.0000 (stdev 0.0000) | 0/10 (exactly tied, not behind) |
+| `observable_optimal` (analysis only) | −0.0166 (stdev 0.0071) | 0/10 |
+| `oracle_upper_bound` (analysis only) | +0.0780 (stdev 0.0057) | 10/10 |
+
+**8-arm ranking holds at every one of the 10 held-out seeds, no exceptions:**
+`blind_retry > oracle_upper_bound > rules_only > tuned_weights ≈ rules_plus_model_gemini
+≈ rules_plus_model_groq > observable_optimal > control` (the three model-sourced arms
+are written as tied because their rates are exactly identical, not merely adjacent —
+same mechanism as `tuned_weights`' own exact tie with `rules_only` on recovery rate,
+now reproduced for both providers via the pre-registered abstention path rather than a
+converged grid-search optimum).
+
+**Exactly as predicted, before either provider was called:** both model arms landed on
+the deterministic fallback, matching `tuned_weights`' own established null, for a
+different but equally clean reason — pre-registered dispersion abstention rather than
+a converged no-op. The Task A2 decomposition above stands as the explanation for why:
+`observable_optimal` (real headroom on net value, using only observable features) and
+`oracle_upper_bound`/`oracle_value_maximizing` (the larger, mostly-irreducible
+information gap) are the honest ceilings this result should be read against, not a
+vacuum. Nothing about this run indicts either provider's underlying capability — both
+were perfectly reliable and sensible on every individual call; what the pre-registered
+check caught is that neither converges to one consistent allocation rule across
+repeated generations of the same aggregate-statistics prompt.
 
 ### Prompt-injection scope (smaller correction 1)
 

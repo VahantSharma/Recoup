@@ -1,20 +1,15 @@
-"""Day 4 held-out ablation: five policies (control, blind_retry, rules_only,
-tuned_weights, rules_plus_model), ten held-out seeds (app.model.seeds.HELD_OUT_SEEDS),
-none seen at grid-search or synthesis time (PROPOSAL_SEED=42).
+"""Day 4 held-out ablation, final form: six submittable/candidate arms (control,
+blind_retry, rules_only, tuned_weights, rules_plus_model_gemini,
+rules_plus_model_groq) plus two analysis-only reference rows
+(observable_optimal, oracle_upper_bound -- never candidates, see
+app/harness/observable_optimal.py and app/harness/oracle.py's own docstrings), all
+across the 10 HELD_OUT_SEEDS (app.model.seeds), none seen at grid-search or synthesis
+time (PROPOSAL_SEED=42).
 
 Amendment 2: a single held-out point captures within-corpus variance only, not
-corpus-to-corpus variance -- Day 3's own doctrine (docs/results.md's sensitivity
-sweep) is that the RANKING, not the number, is the result, established across a swept
-grid. This script applies the same discipline one level up: reports the distribution
-of each model-sourced arm's lift over rules_only across all 10 seeds, and how often
-the full 5-arm ranking (by absolute recovery rate) holds, naming the condition where
-it flips if it does.
-
-Placeholder-first (Amendment 5): this script currently loads
-data/playbook_v0_placeholder.json for the rules_plus_model arm -- proving the whole
-harness end to end with zero network dependency before step 16 swaps in the real,
-synthesized winner. tuned_weights already loads the real, final
-data/playbook_tuned_weights.json (step 6 -- zero network dependency either way).
+corpus-to-corpus variance -- this script reports the distribution of each
+model-sourced arm's lift over rules_only across all 10 seeds, and how often the full
+ranking holds.
 
 Run: cd backend && python -m scripts.run_day4_ablation
 """
@@ -28,8 +23,10 @@ from pathlib import Path
 
 from app import manifest
 from app.corpus_builder import build_corpus
+from app.harness.observable_optimal import ObservableOptimalParams, ObservableOptimalPolicy
+from app.harness.oracle import OracleUpperBoundPolicy
 from app.harness.policies import BlindRetryPolicy, ControlPolicy, ModelPlaybookPolicy, RulesOnlyPolicy
-from app.harness.run import run_ablation
+from app.harness.run import run_arm
 from app.harness.stats import paired_bootstrap_lift
 from app.model.playbook_schema import Playbook
 from app.model.seeds import HELD_OUT_SEEDS
@@ -38,16 +35,19 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 N = 1200
 RETRY_DELAY_HOURS = 24
 MAX_CASE_LIFETIME_DAYS = 45
-
-# Swapped for the real, synthesized winner at step 16 -- see the module docstring.
-RULES_PLUS_MODEL_PLAYBOOK_FILE = "playbook_v0_placeholder.json"
-TUNED_WEIGHTS_PLAYBOOK_FILE = "playbook_tuned_weights.json"
-
-# True (default, real) -- the fixed, correctly-paired harness (see
-# app.simulator.outcomes.attempt_succeeds and docs/results.md's "Common random
-# numbers" section). False reproduces the pre-fix behavior for comparison ONLY --
-# never the source of a reported result.
 USE_COMMON_RANDOM_NUMBERS = True
+
+TUNED_WEIGHTS_FILE = "playbook_tuned_weights.json"
+RULES_PLUS_MODEL_GEMINI_FILE = "playbook_gemini_v1.json"
+RULES_PLUS_MODEL_GROQ_FILE = "playbook_groq_v1.json"
+
+SUBMITTABLE_ARMS = (
+    "control", "blind_retry", "rules_only", "tuned_weights",
+    "rules_plus_model_gemini", "rules_plus_model_groq",
+)
+REFERENCE_ARMS = ("observable_optimal", "oracle_upper_bound")
+ALL_ARMS = SUBMITTABLE_ARMS + REFERENCE_ARMS
+MODEL_SOURCED_ARMS = ("tuned_weights", "rules_plus_model_gemini", "rules_plus_model_groq")
 
 
 def _load_playbook(filename: str) -> Playbook:
@@ -58,84 +58,87 @@ def _fmt_paise(p: float) -> str:
     return f"Rs {p / 100:,.2f}"
 
 
-def build_policies() -> dict[str, object]:
-    tuned_weights_pb = _load_playbook(TUNED_WEIGHTS_PLAYBOOK_FILE)
-    rules_plus_model_pb = _load_playbook(RULES_PLUS_MODEL_PLAYBOOK_FILE)
-    return {
+def _run_all_arms(seed: int, oo_params: ObservableOptimalParams) -> dict[str, list]:
+    corpus = build_corpus(n=N, seed=seed, batch_simulated_start_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    tuned_weights_pb = _load_playbook(TUNED_WEIGHTS_FILE)
+    gemini_pb = _load_playbook(RULES_PLUS_MODEL_GEMINI_FILE)
+    groq_pb = _load_playbook(RULES_PLUS_MODEL_GROQ_FILE)
+
+    policies = {
         "control": ControlPolicy(),
         "blind_retry": BlindRetryPolicy(),
         "rules_only": RulesOnlyPolicy(),
         "tuned_weights": ModelPlaybookPolicy(tuned_weights_pb, name="tuned_weights"),
-        "rules_plus_model": ModelPlaybookPolicy(rules_plus_model_pb, name="rules_plus_model"),
+        "rules_plus_model_gemini": ModelPlaybookPolicy(gemini_pb, name="rules_plus_model_gemini"),
+        "rules_plus_model_groq": ModelPlaybookPolicy(groq_pb, name="rules_plus_model_groq"),
+        "observable_optimal": ObservableOptimalPolicy(oo_params),
+        "oracle_upper_bound": OracleUpperBoundPolicy(master_seed=seed, max_case_lifetime_days=MAX_CASE_LIFETIME_DAYS),
+    }
+    return {
+        name: run_arm(
+            corpus, policy, seed, RETRY_DELAY_HOURS, MAX_CASE_LIFETIME_DAYS,
+            use_common_random_numbers=USE_COMMON_RANDOM_NUMBERS,
+        )
+        for name, policy in policies.items()
     }
 
 
-def main() -> None:
-    policies = build_policies()
-    arm_names = list(policies.keys())
-    using_placeholder = RULES_PLUS_MODEL_PLAYBOOK_FILE == "playbook_v0_placeholder.json"
+def _rate(rows) -> float:
+    return sum(r.recovered for r in rows) / len(rows)
 
-    print("=== MANIFEST -- Day 4 held-out ablation ===")
+
+def main() -> None:
+    from app.harness.observable_optimal import run_observable_optimal_search
+
+    print("=== MANIFEST -- Day 4 held-out ablation (final: 6 submittable + 2 reference arms) ===")
     print(f"git_sha            = {manifest.git_sha()}")
     print(f"db_path            = {manifest.db_path()}")
     print(f"held_out_seeds     = {list(HELD_OUT_SEEDS)}")
     print(f"n per seed         = {N}")
-    print(f"tuned_weights_file = {TUNED_WEIGHTS_PLAYBOOK_FILE}")
-    print(f"rules_plus_model_file = {RULES_PLUS_MODEL_PLAYBOOK_FILE}"
-          + ("  *** PLACEHOLDER -- not a reportable result until step 16 swaps the real winner in ***" if using_placeholder else ""))
-    print(f"use_common_random_numbers = {USE_COMMON_RANDOM_NUMBERS}"
-          + ("" if USE_COMMON_RANDOM_NUMBERS else "  *** PRE-FIX MODE -- comparison only, not a reportable result ***"))
+    print(f"use_common_random_numbers = {USE_COMMON_RANDOM_NUMBERS}")
+    missing = [f for f in (TUNED_WEIGHTS_FILE, RULES_PLUS_MODEL_GEMINI_FILE, RULES_PLUS_MODEL_GROQ_FILE) if not (DATA_DIR / f).exists()]
+    if missing:
+        raise SystemExit(f"missing playbook file(s): {missing} -- run grid_search / synthesize_playbook first")
     print()
 
-    per_seed_results: dict[int, dict[str, list]] = {}
-    for seed in HELD_OUT_SEEDS:
-        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        corpus = build_corpus(n=N, seed=seed, batch_simulated_start_at=start)
-        per_seed_results[seed] = run_ablation(
-            corpus, list(policies.values()), master_seed=seed,
-            retry_delay_hours=RETRY_DELAY_HOURS, max_case_lifetime_days=MAX_CASE_LIFETIME_DAYS,
-            use_common_random_numbers=USE_COMMON_RANDOM_NUMBERS,
-        )
+    print("--- re-deriving observable_optimal's fitted params (deterministic, zero network) ---")
+    oo_params, _ = run_observable_optimal_search()
+    print(f"observable_optimal params: {oo_params}")
+    print()
 
-    print("--- per-seed lift: model-sourced arms vs rules_only (rate lift, 95% CI) ---")
-    tw_rate_deltas: list[float] = []
-    rpm_rate_deltas: list[float] = []
-    tw_net_yield_counts: list[int] = []
-    rpm_net_yield_counts: list[int] = []
+    per_seed_results: dict[int, dict[str, list]] = {
+        seed: _run_all_arms(seed, oo_params) for seed in HELD_OUT_SEEDS
+    }
+
+    print("--- per-seed lift: each model-sourced/reference arm vs rules_only (rate lift, 95% CI) ---")
+    rate_deltas: dict[str, list[float]] = {arm: [] for arm in MODEL_SOURCED_ARMS + REFERENCE_ARMS}
+    yield_counts: dict[str, list[int]] = {arm: [] for arm in MODEL_SOURCED_ARMS}
     for seed in HELD_OUT_SEEDS:
         results = per_seed_results[seed]
-        tw_lift = paired_bootstrap_lift(results["tuned_weights"], results["rules_only"], seed=7)
-        rpm_lift = paired_bootstrap_lift(results["rules_plus_model"], results["rules_only"], seed=7)
-        tw_rate_deltas.append(tw_lift.rate_lift)
-        rpm_rate_deltas.append(rpm_lift.rate_lift)
-        tw_net_yield_counts.append(sum(r.final_status == "gave_up_yielded_scarce_budget" for r in results["tuned_weights"]))
-        rpm_net_yield_counts.append(sum(r.final_status == "gave_up_yielded_scarce_budget" for r in results["rules_plus_model"]))
-        print(
-            f"seed={seed}: tuned_weights-rules_only={tw_lift.rate_lift:+.4f} "
-            f"[{tw_lift.rate_lift_ci_low:+.4f},{tw_lift.rate_lift_ci_high:+.4f}]  "
-            f"rules_plus_model-rules_only={rpm_lift.rate_lift:+.4f} "
-            f"[{rpm_lift.rate_lift_ci_low:+.4f},{rpm_lift.rate_lift_ci_high:+.4f}]  "
-            f"yields(tw/rpm)={tw_net_yield_counts[-1]}/{rpm_net_yield_counts[-1]}"
-        )
+        line = [f"seed={seed}:"]
+        for arm in MODEL_SOURCED_ARMS + REFERENCE_ARMS:
+            lift = paired_bootstrap_lift(results[arm], results["rules_only"], seed=7)
+            rate_deltas[arm].append(lift.rate_lift)
+            line.append(f"{arm}-rules_only={lift.rate_lift:+.4f}[{lift.rate_lift_ci_low:+.4f},{lift.rate_lift_ci_high:+.4f}]")
+        for arm in MODEL_SOURCED_ARMS:
+            yield_counts[arm].append(sum(r.final_status == "gave_up_yielded_scarce_budget" for r in results[arm]))
+        print("  " + "  ".join(line))
 
     def _summary(name: str, deltas: list[float]) -> None:
         print(f"\n{name} distribution across {len(deltas)} held-out seeds:")
-        print(
-            f"  mean={statistics.mean(deltas):+.4f}  stdev={statistics.pstdev(deltas):.4f}  "
-            f"min={min(deltas):+.4f}  max={max(deltas):+.4f}"
-        )
+        print(f"  mean={statistics.mean(deltas):+.4f}  stdev={statistics.pstdev(deltas):.4f}  min={min(deltas):+.4f}  max={max(deltas):+.4f}")
         print(f"  positive (beats rules_only) in {sum(d > 0 for d in deltas)}/{len(deltas)} seeds")
 
-    _summary("tuned_weights - rules_only rate lift", tw_rate_deltas)
-    _summary("rules_plus_model - rules_only rate lift", rpm_rate_deltas)
-    print(f"\ntotal yields across all seeds: tuned_weights={sum(tw_net_yield_counts)}  rules_plus_model={sum(rpm_net_yield_counts)}")
+    for arm in MODEL_SOURCED_ARMS + REFERENCE_ARMS:
+        _summary(f"{arm} - rules_only rate lift", rate_deltas[arm])
+    print(f"\ntotal yields across all seeds: " + "  ".join(f"{arm}={sum(yield_counts[arm])}" for arm in MODEL_SOURCED_ARMS))
 
-    print("\n--- 5-arm ranking (by absolute recovery rate, descending), per held-out seed ---")
+    print(f"\n--- full ranking (by absolute recovery rate, descending), per held-out seed, all {len(ALL_ARMS)} arms ---")
     rankings = []
     for seed in HELD_OUT_SEEDS:
         results = per_seed_results[seed]
-        rates = {arm: sum(r.recovered for r in rows) / len(rows) for arm, rows in results.items()}
-        ranking = tuple(sorted(arm_names, key=lambda a: -rates[a]))
+        rates = {arm: _rate(results[arm]) for arm in ALL_ARMS}
+        ranking = tuple(sorted(ALL_ARMS, key=lambda a: -rates[a]))
         rankings.append(ranking)
         print(f"seed={seed}: " + " > ".join(ranking))
 
