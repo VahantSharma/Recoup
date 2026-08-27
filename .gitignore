@@ -21,6 +21,11 @@ data/*.sqlite3
 logs/
 *.log
 
+# Day 4 model-provider disk cache -- real, gitignored responses, not committed data.
+# NOT a wildcard on data/*.json: backend/data/harvested_corpus.json and the committed
+# playbook_*.json files are real, tracked data and must stay tracked.
+backend/data/model_cache/
+
 # os / editor
 .DS_Store
 .vscode/*
