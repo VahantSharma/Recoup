@@ -22,7 +22,9 @@
 cp .env.example .env
 ```
 
-Open `.env` and paste in your real `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `ANTHROPIC_API_KEY`, and (optional) `CONTEXT7_API_KEY` / `GITHUB_PAT`. **Never commit this file** — `.gitignore` already excludes it.
+Open `.env` and paste in your real `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `ANTHROPIC_API_KEY` (optional — not currently wired to any code path), and (optional) `CONTEXT7_API_KEY` / `GITHUB_PAT`. **Never commit this file** — `.gitignore` already excludes it.
+
+For the Day 4 model layer (`backend/app/model/`, playbook synthesis + provider bake-off), also fill in `GEMINI_API_KEY` (aistudio.google.com/apikey) and `GROQ_API_KEY` (console.groq.com/keys) — both free, no card required. `backend/app/model/provider.py` loads `.env` itself (`load_dotenv()`), so these two don't need the shell-sourcing step below to reach Python code — only the MCP servers do.
 
 Then derive the one value you can't just paste — Razorpay's remote MCP server authenticates with HTTP Basic auth, base64-encoded:
 ```bash
