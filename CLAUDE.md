@@ -83,7 +83,9 @@ If rules-only captures most of the value, report that honestly. Bounding your ow
 - Tests: `cd backend && pytest` (62 tests as of Day 2 — state machine, idempotency/replay, arm assignment, taxonomy incl. unknown-decline, corpus builder, DATABASE_URL resolution, run manifest, import boundary, the policy gate's 8 guardrails)
 - Day 1 real-corpus demo: `cd backend && python -m scripts.seed_day1_demo`
 - Day 2 corpus-builder demo: `cd backend && python -m scripts.seed_day2_corpus_demo`
-- FastAPI app (`uvicorn app.main:app --reload`) and the React/Vite frontend don't exist yet — Day 5 surface work. Don't reference commands for either until they're real; this line itself gets deleted the day they land, not left half-true.
+- Day 5 case audit export: `cd backend && python -m scripts.export_case_audit` (writes `frontend/public/data/case_audit.json`)
+- FastAPI app, Day 5's one live path (reconcile-gated, idempotent-replay demo against real Razorpay test mode): `cd backend && uvicorn app.main:app --reload`
+- Frontend: `cd frontend && npm install && npm run dev` (or `npm run build && npm run lint`). Reads only committed artifacts under `frontend/public/data/` — see `frontend/README.md`.
 
 (Update this section the moment more real scripts exist — don't leave it aspirational.)
 
