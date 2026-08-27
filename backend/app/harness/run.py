@@ -39,6 +39,26 @@ class CaseArmResult:
                    # a real, distinct outcome, not silently counted as "not recovered"
 
 
+@dataclass(frozen=True)
+class GateCallTrace:
+    """One gate.evaluate() call's full context and verdict, for a case explicitly
+    opted into tracing via run_arm_with_case_traces' trace_case_ids. Day 5's case audit
+    screen builds its per-case guardrail table from this -- see
+    scripts/export_case_audit.py. Deliberately separate from CaseArmResult/
+    AttemptHistoryEntry rather than added to either: those two are consumed by every
+    existing statistics/sweep/compliance caller, and this plan's whole point is adding
+    zero risk to that path."""
+
+    attempt_number: int
+    now: datetime
+    window_count: int
+    proposal_action_type: str
+    proposal_amount_paise: int | None
+    decision: str
+    reason: str
+    route_to: str | None
+
+
 @dataclass
 class _CaseState:
     case: ObservableCase
@@ -120,6 +140,8 @@ def _run_arm_impl(
     max_case_lifetime_days: int,
     guardrail_counts: dict[str, int] | None,
     use_common_random_numbers: bool = True,
+    trace_case_ids: frozenset[str] = frozenset(),
+    case_traces: dict[str, list[GateCallTrace]] | None = None,
 ) -> list[CaseArmResult]:
     """Runs one policy over the full corpus. Ground truth is drawn fresh here from the
     same (master_seed, case_id) every time this is called for the same case — that's
@@ -135,7 +157,13 @@ def _run_arm_impl(
     guardrail_counts, if given, is mutated in place: every gate.evaluate() call's
     GateResult.reason (one of the 8 guardrail names, or "permitted") is tallied there.
     Optional and separate from CaseArmResult on purpose -- run_arm/run_ablation's
-    existing return shape is unchanged for every caller that doesn't need this."""
+    existing return shape is unchanged for every caller that doesn't need this.
+
+    trace_case_ids/case_traces: same side-channel pattern as guardrail_counts, one
+    level more granular. For any case whose id is in trace_case_ids, every
+    gate.evaluate() call made for it is appended to case_traces[case_id] as a
+    GateCallTrace. Empty/None by default -- every existing caller (run_arm,
+    run_arm_with_guardrail_counts) is unaffected; see run_arm_with_case_traces."""
     queue = EventQueue()
     states: dict[str, _CaseState] = {}
     card_attempt_times: dict[str, list[datetime]] = {}
@@ -236,6 +264,18 @@ def _run_arm_impl(
         )
         if guardrail_counts is not None:
             guardrail_counts[result.reason] = guardrail_counts.get(result.reason, 0) + 1
+        if state.case.id in trace_case_ids and case_traces is not None:
+            # attempt_number is THIS CASE's own sequential attempt count (len(history)+1,
+            # matching AttemptHistoryEntry's below and case_attempts.attempt_number's real
+            # meaning) -- deliberately not window_count+1, which is the shared CARD's
+            # rolling attempt count and can repeat across a case's own consecutive gate
+            # calls whenever a scheduled attempt's own timestamp hasn't aged out of its
+            # own window yet (caught by tests/test_harness_case_traces.py).
+            case_traces.setdefault(state.case.id, []).append(GateCallTrace(
+                attempt_number=len(state.history) + 1, now=now, window_count=window_count,
+                proposal_action_type=proposal.action_type, proposal_amount_paise=proposal.amount_paise,
+                decision=result.decision, reason=result.reason, route_to=result.route_to,
+            ))
         will_execute = (result.decision == "approved") or audit_only
         if result.decision == "rejected" and audit_only:
             state.violation_count += 1
@@ -295,6 +335,29 @@ def run_arm_with_guardrail_counts(
         guardrail_counts=counts, use_common_random_numbers=use_common_random_numbers,
     )
     return results, counts
+
+
+def run_arm_with_case_traces(
+    corpus: list[CaseDraft],
+    policy: Policy,
+    master_seed: int,
+    retry_delay_hours: int,
+    max_case_lifetime_days: int,
+    trace_case_ids: frozenset[str],
+    use_common_random_numbers: bool = True,
+) -> tuple[list[CaseArmResult], dict[str, list[GateCallTrace]]]:
+    """Same as run_arm, plus every gate.evaluate() call made for each case in
+    trace_case_ids, in order -- the full per-case decision trail Day 5's case audit
+    screen needs (guardrail table per gate call, idempotency key per attempt). A case
+    not in trace_case_ids costs nothing extra; a case that is costs one list append per
+    gate call it actually makes. See scripts/export_case_audit.py for the consumer."""
+    traces: dict[str, list[GateCallTrace]] = {}
+    results = _run_arm_impl(
+        corpus, policy, master_seed, retry_delay_hours, max_case_lifetime_days,
+        guardrail_counts=None, use_common_random_numbers=use_common_random_numbers,
+        trace_case_ids=trace_case_ids, case_traces=traces,
+    )
+    return results, traces
 
 
 def run_ablation(
