@@ -696,6 +696,36 @@ throughout — never one gap in whichever unit flatters it. **The two tables dis
 about whether `observable_optimal` is an improvement over `rules_only`, and that
 disagreement is the finding**, not resolved by picking one.
 
+**Fix 1 (review round 2) — `oracle_value_maximizing` was misnamed: it reused
+`observable_optimal`'s parameters, fit for a world with NO recoverability
+information, and a genuine perfect-information value-maximizer cannot lose to a
+perfect-information count-filter (`oracle_upper_bound`) on value, since it remains
+free to adopt the same ordering.** It did lose, at every seed, in the first pass —
+proof the name asserted a property the runtime didn't have. Fixed by re-fitting: the
+identical 600-point search, with the perfect-recoverability filter active throughout,
+against `PROPOSAL_SEED=42`
+(`app.harness.oracle.run_oracle_value_maximizing_search`, sharing one search
+implementation with `observable_optimal`'s own fit —
+`search_over_value_params`). Winner: identical to `observable_optimal`'s except
+`defer_cutoff=0.4` (vs. `1.0`) — a *less aggressive* yield trigger, exactly the
+predicted direction once there's no recoverability uncertainty left to hedge against.
+**Dominance check, done as instructed, not assumed:** holds at the in-sample point
+(₹9,29,644.06 vs `oracle_upper_bound`'s ₹9,23,089.03) and at 6 of 10 held-out seeds;
+**fails narrowly at 4 held-out seeds** (202, 303, 707, 808), by margins of ₹257–1,418
+on net values around ₹9–10 lakh (0.03%–0.15% relative — `scripts.
+run_bound_decomposition`'s own dominance-check block prints all 11 points, not
+cherry-picked). Reported exactly as instructed rather than smoothed over. Diagnosis:
+this is not a broken search or objective — the params are fit on ONE seed
+(`PROPOSAL_SEED=42`) and then evaluated fixed on ten others; a fixed-parameter policy
+need not be exactly optimal on data it wasn't fit on, the same generalization gap
+already documented for `observable_optimal` itself (its own GAP 1 goes slightly
+negative at held-out seed 303, for the identical reason). The margins are small
+enough, and the failures narrow enough, that they don't change any conclusion below;
+re-fitting per held-out seed would close them but is out of scope here (STOP ANALYSIS,
+per review) and would leak held-out data into the fit it's meant to evaluate.
+
+**Fix 2 (review round 2) — "held-out beats in-sample" was wrongly called reassuring; it's a corpus-difficulty confound.** Checked directly, as instructed: `rules_only`'s own *absolute* net value shifts from ₹8,14,685.52 (`PROPOSAL_SEED=42`) to a ₹8,34,556.64 held-out mean — **+2.44%, unprompted by anything `observable_optimal` does**. The corpora are not exchangeable in difficulty; `PROPOSAL_SEED=42` is a mildly harder draw across the board. **Every cross-seed claim in this section is therefore made on paired LIFT (same-seed difference against `rules_only`), never on an absolute value compared across different seeds** — the error the original Problem 4 writeup made. Checked retroactively across the rest of this section per instruction: Tables 1 and 2's own GAP figures were already same-seed paired differences throughout (not absolute cross-seed comparisons), so only the standalone overfitting-check paragraph needed restating — done below. The "PROPOSAL_SEED / held-out mean" columns in both tables below are absolute, descriptive context only, not a claim — read them next to this note, not as a trend.
+
 **TABLE 1 — recovery rate** (chain: `rules_only → observable_optimal → oracle_upper_bound`)
 
 | Arm | PROPOSAL_SEED rate | Held-out mean rate | Held-out stdev |
@@ -703,7 +733,7 @@ disagreement is the finding**, not resolved by picking one.
 | `rules_only` | 52.206% | 53.322% | 0.0102 |
 | `observable_optimal` (analysis only) | 50.458% | 51.665% | 0.0112 |
 | `oracle_upper_bound` (analysis only) | 61.199% | 61.124% | 0.0080 |
-| `oracle_value_maximizing` (analysis only, cross-check) | 57.036% | 57.685% | 0.0094 |
+| `oracle_value_maximizing` (analysis only, cross-check, re-fit per Fix 1) | 60.200% | 60.458% | 0.0068 |
 
 GAP 1 (`observable_optimal − rules_only`): **−0.0175** in-sample (95% CI
 [−0.0308, −0.0050]), **−0.0058 to −0.0266 at every one of the 10 held-out seeds** —
@@ -714,6 +744,12 @@ GAP 2 (`oracle_upper_bound − observable_optimal`): **+0.1074** in-sample, **+0
 Additive identity holds exactly at every seed: `GAP1 + GAP2 = oracle_upper_bound −
 rules_only` (e.g. seed 42: −0.0175 + 0.1074 = +0.0899, matching the direct figure to
 four decimals; verified programmatically at all 11 points, not spot-checked).
+Cross-check (`oracle_value_maximizing − observable_optimal`, re-fit): **+0.0974**
+in-sample, **+0.0766 to +0.0999** held-out — the re-fit value-maximizing variant
+recovers *more* than `observable_optimal` too (recall it dropped `observable_optimal`'s
+own value-weighting once recoverability uncertainty was removed), just not as much as
+the unweighted `oracle_upper_bound` — consistent with trading some count for value
+even under perfect information.
 
 **TABLE 2 — net value** (chain: `rules_only → observable_optimal → oracle_value_maximizing`)
 
@@ -721,19 +757,24 @@ four decimals; verified programmatically at all 11 points, not spot-checked).
 |---|---|---|
 | `rules_only` | ₹8,14,685.52 | ₹8,34,556.64 |
 | `observable_optimal` (analysis only) | ₹8,33,899.54 | ₹8,54,834.85 |
-| `oracle_value_maximizing` (analysis only, cross-check) | ₹9,16,712.36 | ₹9,28,900.60 |
-| `oracle_upper_bound` (analysis only) | ₹9,23,089.03 | ₹9,36,760.17 |
+| `oracle_value_maximizing` (analysis only, re-fit per Fix 1) | ₹9,29,644.06 | ₹9,37,707.76 |
+| `oracle_upper_bound` (analysis only, cross-check) | ₹9,23,089.03 | ₹9,36,760.17 |
 
 GAP 1 (`observable_optimal − rules_only`): **+₹19,214.02** in-sample, **positive at 10
 of the 11 points** (all 10 held-out seeds but one — seed 303 shows −₹1,812.14, a small
-loss; every other seed and the in-sample point are positive, mean held-out gap
-≈+₹20,300). On net value, `observable_optimal` is a **better** policy than
-`rules_only`, almost everywhere.
-GAP 2 (`oracle_value_maximizing − observable_optimal`): **+₹82,812.82** in-sample,
-positive at every point held out.
-Additive identity holds exactly here too (e.g. seed 42: ₹19,214.02 + ₹82,812.82 =
-₹1,02,026.84, matching the direct `oracle_value_maximizing − rules_only` figure to the
+loss; every other seed and the in-sample point are positive). On net value,
+`observable_optimal` is a **better** policy than `rules_only`, almost everywhere.
+GAP 2 (`oracle_value_maximizing − observable_optimal`, re-fit): **+₹95,744.51**
+in-sample, positive at every point held out — larger than the pre-Fix-1 figure
+(+₹82,812.82), as expected once `oracle_value_maximizing` actually maximizes value
+instead of understating the ceiling.
+Additive identity holds exactly here too (e.g. seed 42: ₹19,214.02 + ₹95,744.51 =
+₹1,14,958.54, matching the direct `oracle_value_maximizing − rules_only` figure to the
 paise at all 11 points).
+Cross-check (`oracle_upper_bound − observable_optimal`): +₹89,189.49 in-sample —
+now correctly the *smaller* of the two variants' gaps at this seed (though not at
+every held-out seed — see the Fix 1 dominance note above), consistent with
+`oracle_value_maximizing` now being the properly-fit ceiling.
 
 **The two tables disagree, and that disagreement is the finding.** Recovering fewer,
 larger, cheaper-to-serve cases is worse on recovery rate and better on net value —
@@ -746,33 +787,16 @@ objectives rank the *same policy* in opposite directions on the *same data*, and
 one to optimize is a business decision, not a technical one that this project gets to
 make unilaterally.
 
-**A further nuance, worth stating rather than hiding, since it complicates the neat
-"value-matched ceiling" framing above:** `oracle_value_maximizing` scores *lower* on
-net value than the plain `oracle_upper_bound` (₹9,16,712.36 vs ₹9,23,089.03 in-sample,
-and at every held-out seed). This is not a bug — `oracle_value_maximizing` reuses
-`observable_optimal`'s parameters *as fit for a world with no recoverability
-information*, where yielding on a marginal-looking case is a hedge against wasting an
-attempt on one that might be hopeless. Once true recoverability is already known (as
-it is for both oracle variants), every case still under consideration is *guaranteed*
-recoverable — so that same hedge has nothing left to protect against, and reusing it
-can only cost value, never add it. **`oracle_value_maximizing`, as constructed, is
-therefore a *lower bound* on the true net-value-maximizing ceiling under perfect
-information, not the ceiling itself** — an independently-fit value-maximizing oracle
-would do at least as well as `oracle_upper_bound`'s own number (923,089.03), since it
-remains free to learn "never yield beyond the recoverability filter" if that turns out
-to be optimal, which this result suggests it may already be. Consistent with, and a
-second independent confirmation of, the original CRN grid-search finding that
-voluntary yielding never beat the functional no-op anywhere in the swept space.
-
-**Problem 4 — `observable_optimal`'s own overfitting check, on the metric it was
-actually fit on (net value, not gross amount):** in-sample net value **₹8,33,899.54**;
-held-out mean **₹8,54,834.85** (stdev ₹54,439.94, min ₹7,17,734.82, max ₹9,22,029.67 —
-figures from the real run, `scripts.run_bound_decomposition`). **The held-out mean is *higher* than the in-sample point**
-— the fit does not overfit in the direction that would matter (it wasn't "lucky" on
-PROPOSAL_SEED and disappointing elsewhere); if anything PROPOSAL_SEED=42 was a
-mildly *harder* draw for this policy than the held-out average. With 600 points fit on
-one seed this needed to be checked, not assumed, and checking it produced a reassuring
-answer rather than a concerning one.
+**Problem 4, restated on paired lift per Fix 2 (never absolute value across seeds):**
+`observable_optimal`'s net-value lift over `rules_only` — in-sample **+₹19,214.02**;
+held-out lift mean **+₹20,278.21** (stdev ₹9,381.07, min **−₹1,812.14** [seed 303], max
++₹32,395.97). **Overfitting gap (in-sample lift − held-out mean lift): −₹1,064.19** —
+essentially zero, marginally in the *generous* direction, not the 2.44%
+corpus-difficulty artifact the unpaired comparison showed. This is the honest
+overfitting read: negligible, not "reassuring" — a 600-point fit on one seed produced
+a lift that generalizes almost exactly as well as it fit, once the corpus-difficulty
+confound (Fix 2) is removed by differencing against `rules_only` on the same corpus
+before comparing across seeds.
 
 **What this decomposition licenses, precisely:** the Day 4 null is **explained, not
 excused**, on the metric it was actually about (net value, `observable_optimal`'s own
@@ -783,10 +807,10 @@ named — ticket size and case staleness, neither of which `PlaybookProposal` ca
 On *recovery rate*, the opposite holds — `observable_optimal` is worse, not better —
 which is itself the correct, expected consequence of optimizing a different objective,
 not a contradiction. Simultaneously, most of `oracle_value_maximizing`'s further
-headroom over `observable_optimal` (GAP 2, Table 2) is provably unreachable by any
-observable-feature policy using this mechanism — the honest ceiling on anything built
-on yield-at-scarcity, model or otherwise, whichever single metric a future v2
-ultimately optimizes for.
+headroom over `observable_optimal` (GAP 2, Table 2, now a genuine value-maximizing
+ceiling per Fix 1) is provably unreachable by any observable-feature policy using this
+mechanism — the honest ceiling on anything built on yield-at-scarcity, model or
+otherwise, whichever single metric a future v2 ultimately optimizes for.
 
 ### Provider-agnostic, tested at the exact place it breaks
 

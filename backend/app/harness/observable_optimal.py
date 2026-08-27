@@ -138,10 +138,15 @@ class ObservableOptimalPolicy:
         return ActionProposal(action_type="retry_payment_link", amount_paise=case.amount)
 
 
-def run_observable_optimal_search(corpus=None) -> tuple[ObservableOptimalParams, float]:
-    """Grid search over the combined space (600 points), scored by net_value_paise
-    against PROPOSAL_SEED's corpus -- returns the winning params and their net value.
-    Never touches a HELD_OUT_SEED (see app.model.seeds) while fitting."""
+def search_over_value_params(policy_factory, corpus=None) -> tuple[ObservableOptimalParams, float]:
+    """The shared 600-point grid search: for each ObservableOptimalParams candidate,
+    build a policy via policy_factory(params) and score it by net_value_paise against
+    PROPOSAL_SEED's corpus. Never touches a HELD_OUT_SEED while fitting. Used both by
+    run_observable_optimal_search (policy_factory=ObservableOptimalPolicy) and by
+    app.harness.oracle.run_oracle_value_maximizing_search (policy_factory wraps
+    OracleValueMaximizingPolicy with a fixed master_seed) -- one search
+    implementation, not two, so the two fits are comparable on more than just their
+    parameter grid."""
     if corpus is None:
         corpus = build_corpus(n=CORPUS_N, seed=PROPOSAL_SEED, batch_simulated_start_at=CORPUS_START)
 
@@ -158,7 +163,7 @@ def run_observable_optimal_search(corpus=None) -> tuple[ObservableOptimalParams,
             ticket_size_bonus=ticket_bonus, attempt_penalty=attempt_pen, staleness_penalty_per_day=staleness_pen,
         )
         rows = run_arm(
-            corpus, ObservableOptimalPolicy(params), master_seed=PROPOSAL_SEED,
+            corpus, policy_factory(params), master_seed=PROPOSAL_SEED,
             retry_delay_hours=24, max_case_lifetime_days=45,
         )
         nv = net_value_paise(rows, COST_PER_CONTACT_ATTEMPT_MILLI_PAISE)
@@ -168,3 +173,10 @@ def run_observable_optimal_search(corpus=None) -> tuple[ObservableOptimalParams,
 
     assert best_params is not None
     return best_params, best_nv
+
+
+def run_observable_optimal_search(corpus=None) -> tuple[ObservableOptimalParams, float]:
+    """Grid search over the combined space (600 points), scored by net_value_paise
+    against PROPOSAL_SEED's corpus -- returns the winning params and their net value.
+    Never touches a HELD_OUT_SEED (see app.model.seeds) while fitting."""
+    return search_over_value_params(ObservableOptimalPolicy, corpus=corpus)

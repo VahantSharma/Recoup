@@ -34,7 +34,7 @@ from app import manifest
 from app.corpus_builder import build_corpus
 from app.harness.compliance import net_value_paise
 from app.harness.observable_optimal import ObservableOptimalPolicy, run_observable_optimal_search
-from app.harness.oracle import OracleUpperBoundPolicy, OracleValueMaximizingPolicy
+from app.harness.oracle import OracleUpperBoundPolicy, OracleValueMaximizingPolicy, run_oracle_value_maximizing_search
 from app.harness.policies import RulesOnlyPolicy
 from app.harness.run import run_arm
 from app.harness.stats import paired_bootstrap_lift
@@ -84,23 +84,51 @@ def main() -> None:
     print(f"winner: {oo_params}")
     print(f"in-sample net_value_paise (the objective it was fit on) = {oo_fit_nv:,.2f}")
     oo_policy = ObservableOptimalPolicy(oo_params)
+
+    print("\n--- Fix 1: re-fitting oracle_value_maximizing UNDER perfect information (not reusing observable_optimal's params) ---")
+    ov_params, ov_fit_nv = run_oracle_value_maximizing_search()
+    print(f"winner: {ov_params}")
+    print(f"in-sample net_value_paise (the objective it was fit on) = {ov_fit_nv:,.2f}")
     # OracleValueMaximizingPolicy's master_seed must match each corpus's own seed
     # (ground truth is seed-derived) -- rebuilt fresh per seed in the loop below.
 
     seeds = [PROPOSAL_SEED] + list(HELD_OUT_SEEDS)
     per_seed_rows = {}
     for seed in seeds:
-        ov = OracleValueMaximizingPolicy(oo_params, master_seed=seed, max_case_lifetime_days=MAX_CASE_LIFETIME_DAYS)
+        ov = OracleValueMaximizingPolicy(ov_params, master_seed=seed, max_case_lifetime_days=MAX_CASE_LIFETIME_DAYS)
         per_seed_rows[seed] = _run_all(seed, oo_policy, ov)
 
-    # --- Problem 4: observable_optimal net_value in-sample vs held-out (its own fit objective) ---
-    print("\n=== Problem 4: observable_optimal overfitting check, on net_value_paise (its fit objective) ===")
+    # --- Fix 1 sanity check: the re-fit value-maximizing oracle MUST dominate oracle_upper_bound
+    # on net value at every seed, or the search/objective is broken -- checked, not assumed. ---
+    print("\n=== Fix 1 dominance check: oracle_value_maximizing (re-fit) vs oracle_upper_bound, net value, every seed ===")
+    ov_nv_by_seed = {s: net_value_paise(per_seed_rows[s]["oracle_value_maximizing"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE) for s in seeds}
+    ou_nv_by_seed = {s: net_value_paise(per_seed_rows[s]["oracle_upper_bound"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE) for s in seeds}
+    all_dominate = True
+    for s in seeds:
+        dominates = ov_nv_by_seed[s] >= ou_nv_by_seed[s]
+        all_dominate = all_dominate and dominates
+        print(f"  seed={s}: oracle_value_maximizing={ov_nv_by_seed[s]:,.2f}  oracle_upper_bound={ou_nv_by_seed[s]:,.2f}  dominates={dominates}")
+    print(f"dominates at every seed: {all_dominate}" + ("" if all_dominate else "  *** VIOLATION -- report, do not paper over ***"))
+
+    # --- Problem 4 / Fix 2: overfitting measured on PAIRED LIFT vs rules_only, never absolute
+    # value across seeds -- corpora are not exchangeable in difficulty (checked below). ---
+    print("\n=== Fix 2: corpus-difficulty diagnostic -- rules_only's ABSOLUTE net value, in-sample vs held-out ===")
+    rules_nv_by_seed = {s: net_value_paise(per_seed_rows[s]["rules_only"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE) for s in seeds}
+    rules_held_out_nv = [rules_nv_by_seed[s] for s in HELD_OUT_SEEDS]
+    print(f"rules_only in-sample (seed={PROPOSAL_SEED}): {rules_nv_by_seed[PROPOSAL_SEED]:,.2f}")
+    print(f"rules_only held-out mean: {statistics.mean(rules_held_out_nv):,.2f}  "
+          f"(shift: {statistics.mean(rules_held_out_nv) - rules_nv_by_seed[PROPOSAL_SEED]:+,.2f}, "
+          f"{(statistics.mean(rules_held_out_nv) / rules_nv_by_seed[PROPOSAL_SEED] - 1):+.2%})")
+
+    print("\n=== Problem 4, restated on PAIRED LIFT (never absolute value across seeds) ===")
     oo_nv_by_seed = {s: net_value_paise(per_seed_rows[s]["observable_optimal"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE) for s in seeds}
-    print(f"in-sample  (PROPOSAL_SEED={PROPOSAL_SEED}): {oo_nv_by_seed[PROPOSAL_SEED]:,.2f}")
-    held_out_nv = [oo_nv_by_seed[s] for s in HELD_OUT_SEEDS]
-    print(f"held-out mean: {statistics.mean(held_out_nv):,.2f}  stdev: {statistics.pstdev(held_out_nv):.2f}  "
-          f"min: {min(held_out_nv):,.2f}  max: {max(held_out_nv):,.2f}")
-    print(f"overfitting gap (in-sample - held-out mean): {oo_nv_by_seed[PROPOSAL_SEED] - statistics.mean(held_out_nv):,.2f}")
+    oo_lift_by_seed = {s: oo_nv_by_seed[s] - rules_nv_by_seed[s] for s in seeds}
+    in_sample_lift = oo_lift_by_seed[PROPOSAL_SEED]
+    held_out_lifts = [oo_lift_by_seed[s] for s in HELD_OUT_SEEDS]
+    print(f"in-sample lift (observable_optimal - rules_only, seed={PROPOSAL_SEED}): {in_sample_lift:+,.2f}")
+    print(f"held-out lift: mean={statistics.mean(held_out_lifts):+,.2f}  stdev={statistics.pstdev(held_out_lifts):,.2f}  "
+          f"min={min(held_out_lifts):+,.2f}  max={max(held_out_lifts):+,.2f}")
+    print(f"overfitting gap (in-sample lift - held-out mean lift): {in_sample_lift - statistics.mean(held_out_lifts):+,.2f}")
 
     # --- Table 1: recovery rate ---
     print("\n=== TABLE 1 -- RECOVERY RATE (rules_only -> observable_optimal -> oracle_upper_bound is the primary chain) ===")
