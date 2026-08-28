@@ -80,7 +80,8 @@ If rules-only captures most of the value, report that honestly. Bounding your ow
 ## Stack & commands
 
 - Backend: Python 3.11, SQLAlchemy 2.0, SQLite (`data/recoup.db`, path resolved by `backend/app/db.py` regardless of invocation directory — see `db._resolve_database_url`). `cd backend && pip install -r requirements.txt`
-- Tests: `cd backend && pytest` (62 tests as of Day 2 — state machine, idempotency/replay, arm assignment, taxonomy incl. unknown-decline, corpus builder, DATABASE_URL resolution, run manifest, import boundary, the policy gate's 8 guardrails)
+- Rebuild `data/recoup.db` from scratch (a fresh clone has no DB file yet): `cd backend && python -m scripts.init_db`. Idempotent — safe to run again; never drops or truncates existing data. To truly start over, delete `data/recoup.db` first.
+- Tests: `cd backend && pytest` (249 tests as of Day 5 — state machine, idempotency/replay, arm assignment, taxonomy incl. unknown-decline, corpus builder, DATABASE_URL resolution, run manifest, import boundary, the policy gate's 8 guardrails + its exhaustive pairwise ordering proof, the export/artifact-schema layer, the live endpoint's reconcile-gating and idempotent-replay logic)
 - Day 1 real-corpus demo: `cd backend && python -m scripts.seed_day1_demo`
 - Day 2 corpus-builder demo: `cd backend && python -m scripts.seed_day2_corpus_demo`
 - Day 5 case audit export: `cd backend && python -m scripts.export_case_audit` (writes `frontend/public/data/case_audit.json`)
