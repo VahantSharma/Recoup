@@ -34,11 +34,14 @@ export async function verifyRecoveryAction(
   try {
     res = await fetch(url, { method: "POST" });
   } catch {
-    // A fetch that never reaches the network (backend not running, CORS misconfigured)
-    // throws a generic TypeError with no useful message -- translate it into the one
-    // thing a reviewer actually needs to know.
+    // A fetch that never reaches the network throws a generic TypeError with no way to
+    // tell "backend not running" apart from "backend is running but this origin isn't
+    // in its CORS allowlist" -- the browser deliberately hides that distinction from
+    // JS. State both real possibilities rather than confidently naming the wrong one.
     throw new LiveApiUnreachableError(
-      `Could not reach ${BASE_URL}. Is the backend running? cd backend && uvicorn app.main:app --reload`,
+      `Could not reach ${BASE_URL}. Either the backend isn't running ` +
+      `(cd backend && uvicorn app.main:app --reload), or this page is being served ` +
+      `from a port app/main.py's CORS allowlist doesn't include -- see frontend/README.md.`,
     );
   }
   if (!res.ok) {

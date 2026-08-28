@@ -45,7 +45,7 @@ export function CaseList({
               >
                 <div className="case-row-top">
                   <Badge label={outcome.label} tone={outcome.tone} />
-                  {isLive && <Badge label="verified live" tone="ok" />}
+                  {isLive && <Badge label="real payment" tone="ok" />}
                 </div>
                 <p className="case-row-summary">{plainLanguageSummary(row)}</p>
                 <div className="case-row-tech" title={row.case_id}>

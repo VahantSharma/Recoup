@@ -168,8 +168,34 @@
 /* --- result --- */
 
 .live-result {
+  position: relative;
   margin-top: var(--sp-4);
   padding-top: var(--sp-2);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.live-result-updating {
+  opacity: 0.45;
+}
+
+.live-result-updating-badge {
+  position: absolute;
+  top: -10px;
+  right: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-xs-size);
+  letter-spacing: var(--t-xs-tracking);
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--bg);
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-badge);
+}
+
+.live-panel-secondary:disabled {
+  cursor: wait;
+  opacity: 0.5;
 }
 
 .live-result-row {

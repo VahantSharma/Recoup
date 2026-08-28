@@ -40,3 +40,9 @@
   align-items: center;
   gap: 4px;
 }
+
+.copy-button-failed {
+  color: var(--stop);
+  border-color: var(--stop);
+  animation: copy-pulse var(--dur-base) var(--ease-spring);
+}

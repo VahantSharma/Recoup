@@ -1,6 +1,13 @@
 import type { CaseAuditRow } from "./artifacts/types";
 
-export type Tone = "ok" | "warn" | "stop";
+// "policy" is a deliberately distinct fourth tone, not a synonym for "stop" -- a
+// NOT_WORKED case (break_even_floor: the gate could act but the expected value says
+// don't) is a different KIND of thing than a hard compliance/fraud stop, and CLAUDE.md
+// says so explicitly: "declining to act is a feature, and it gets logged." Coloring it
+// identically to a blocked-card refusal was a real doctrine violation, caught in
+// review, not a taste call -- see docs/results.md's guardrail reachability table for
+// why break_even_floor is reachable only via a crafted example in the first place.
+export type Tone = "ok" | "warn" | "stop" | "policy";
 
 export interface OutcomeDescription {
   label: string;
@@ -17,17 +24,16 @@ export interface OutcomeDescription {
 export function describeOutcome(row: CaseAuditRow): OutcomeDescription {
   if (row.outcome === "recovered") return { label: "recovered", tone: "ok" };
   if (row.route_to === "NEEDS_REVIEW") return { label: "human review", tone: "warn" };
-  // NOT_WORKED and a route-less terminal refusal both read as --stop, matching the
-  // guardrail table's own rule (only a NEEDS_REVIEW route earns --warn) -- the color
-  // means the same thing in both places on this screen.
-  if (row.route_to === "NOT_WORKED") return { label: "not worked", tone: "stop" };
+  if (row.route_to === "NOT_WORKED") return { label: "not worked", tone: "policy" };
   return { label: "refused", tone: "stop" };
 }
 
-/** Tone for the guardrail-table band: --warn only for a human-review route, --stop for
- * every other refusal (including a deliberate not-worked). */
+/** Tone for the guardrail-table band: --warn for a human-review route, --policy for a
+ * deliberate not-worked (a choice, not a stop), --stop for every other refusal. */
 export function toneForRouteTo(routeTo: string | null): Tone {
-  return routeTo === "NEEDS_REVIEW" ? "warn" : "stop";
+  if (routeTo === "NEEDS_REVIEW") return "warn";
+  if (routeTo === "NOT_WORKED") return "policy";
+  return "stop";
 }
 
 /** The guardrail (or "permitted") that decided a case -- its LAST gate call's reason. */

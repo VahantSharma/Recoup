@@ -1,6 +1,6 @@
-import { useState } from "react";
 import "./Badge.css";
 import "./Figure.css";
+import { useDismissiblePopover } from "../lib/useDismissiblePopover";
 import type { Provenanced } from "../lib/artifacts/provenance";
 import type { Tone } from "../lib/outcome";
 
@@ -9,8 +9,10 @@ import type { Tone } from "../lib/outcome";
  * Provenanced<T> -- not a bare T -- so a hardcoded literal doesn't typecheck into this
  * slot; `npm run build` fails if a component tries. A dotted underline marks every
  * such value as clickable; hover solidifies it to --accent. Click reveals the manifest
- * (git SHA, seed, corpus hash, simulator params, artifact link) behind the number --
- * CLAUDE.md's "every number resolves to a manifest," made literal in one gesture.
+ * (git SHA, seed, corpus hash, simulator params) behind the number, PLUS a real link to
+ * the raw artifact JSON itself -- CLAUDE.md's "every number resolves to a manifest,"
+ * made literal enough that a reviewer can actually open the file, not just read a
+ * summary of it.
  *
  * badgeTone renders the value as a colored pill instead of underlined text (e.g.
  * decline_class_source) -- still the same clickable Figure underneath, provenance
@@ -27,17 +29,17 @@ export function Figure<T>({
   mono?: boolean;
   badgeTone?: Tone;
 }) {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen, ref } = useDismissiblePopover<HTMLSpanElement>();
   const displayValue = typeof value.value === "string" || typeof value.value === "number"
     ? String(value.value)
     : JSON.stringify(value.value);
 
   const className = badgeTone
-    ? `figure-value figure-value-badge badge-${badgeTone}`
+    ? `figure-value figure-value-badge badge badge-${badgeTone}`
     : `figure-value${mono ? " figure-value-mono" : ""}`;
 
   return (
-    <span className="figure">
+    <span className="figure" ref={ref}>
       <button
         type="button"
         className={className}
@@ -51,12 +53,19 @@ export function Figure<T>({
       {open && (
         <div className="figure-popover" role="dialog">
           <p className="figure-popover-intro">
-            Computed in a real, reproducible run — not asserted. Re-run the script
-            below at this exact commit and every figure on this screen reproduces.
+            Computed in a real, reproducible run — not asserted. Re-run{" "}
+            <span className="figure-mono">{value.manifest.script}</span> at this exact
+            commit and every figure on this screen reproduces.
           </p>
           <div className="figure-popover-row">
             <span className="figure-popover-key">artifact</span>
-            <span className="figure-popover-val">{value.artifactUrl}</span>
+            <a className="figure-popover-link" href={value.artifactUrl} target="_blank" rel="noreferrer">
+              {value.artifactUrl} ↗
+            </a>
+          </div>
+          <div className="figure-popover-row">
+            <span className="figure-popover-key">script</span>
+            <span className="figure-popover-val figure-mono">{value.manifest.script}</span>
           </div>
           <div className="figure-popover-row">
             <span className="figure-popover-key">git_sha</span>

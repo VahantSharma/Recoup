@@ -4,7 +4,6 @@ import { loadCaseAudit } from "../lib/artifacts/loader";
 import { withProvenance } from "../lib/artifacts/provenance";
 import { decisiveReason, describeOutcome } from "../lib/outcome";
 import type { ArtifactEnvelope, CaseAuditArtifact, CaseAuditRow } from "../lib/artifacts/types";
-import { Badge } from "./Badge";
 import { CaseList } from "./CaseList";
 import { CopyButton } from "./CopyButton";
 import { DecisionStep } from "./DecisionStep";
@@ -51,13 +50,32 @@ export function CaseAuditScreen() {
   }, []);
 
   if (state.status === "loading") {
-    return <main className="screen"><p className="screen-loading">Loading case audit…</p></main>;
+    return (
+      <main className="screen">
+        <div className="skeleton skeleton-masthead" />
+        <div className="skeleton skeleton-strip" />
+        <div className="screen-layout">
+          <div className="skeleton-sidebar">
+            {Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton skeleton-row" />)}
+          </div>
+          <div className="skeleton-trace">
+            {Array.from({ length: 5 }, (_, i) => <div key={i} className="skeleton skeleton-card" />)}
+          </div>
+        </div>
+      </main>
+    );
   }
   if (state.status === "error") {
     // Loud, visible failure -- never a silent fallback to stale or wrong data.
     return (
       <main className="screen">
         <h1>Case audit — failed to load</h1>
+        <p className="load-error-help">
+          This usually means the artifact hasn't been generated yet, or its schema
+          changed since the page was built. From the repo root:{" "}
+          <span className="load-error-command">cd backend && python -m scripts.export_case_audit</span>
+          {" "}then reload.
+        </p>
         <pre className="load-error">{state.message}</pre>
       </main>
     );
@@ -81,13 +99,18 @@ export function CaseAuditScreen() {
       <p className="screen-subtitle">
         Pick any case on the left. Each one walks the same five questions a payments
         engineer asks: why it failed, how it was classified, what the gate decided and
-        why, what happened next, and how it ended.
+        why, what happened next, and how it ended. One case — marked <em>real
+        payment</em> — also carries a live panel you can call yourself, against
+        Razorpay's real test-mode API, right now.
       </p>
 
       <div className="provenance-strip">
-        Every figure on this page resolves to run manifest{" "}
+        Every figure in the trace below resolves to run manifest{" "}
         <span className="provenance-strip-sha">{shortSha}</span> — click any
-        <em> dotted</em> value to see exactly which run produced it.
+        <em> underlined or bordered</em> value to see exactly which run produced it, or{" "}
+        <a className="provenance-strip-link" href={CASE_AUDIT_URL} target="_blank" rel="noreferrer">
+          open the raw data yourself ↗
+        </a>
       </div>
 
       <div className="screen-layout">
@@ -217,7 +240,7 @@ function CaseTrace({
         </div>
         <div className="kv-row">
           <span className="kv-label">outcome</span>
-          <Badge label={describeOutcome(row).label} tone={describeOutcome(row).tone} />
+          <Figure value={p(describeOutcome(row).label)} badgeTone={describeOutcome(row).tone} />
         </div>
       </DecisionStep>
 

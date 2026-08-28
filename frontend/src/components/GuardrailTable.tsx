@@ -9,6 +9,12 @@ const CHECK = (
   </svg>
 );
 
+const STAMP_TEXT: Record<string, string> = {
+  stop: "stopped",
+  warn: "review",
+  policy: "by design",
+};
+
 /**
  * One gate call's 8 guardrail rows, in their real checked order (app.gate.
  * GUARDRAIL_ORDER). This shows only what actually happened -- evaluation really did
@@ -18,7 +24,9 @@ const CHECK = (
  * A one-line legend precedes the rows so a reviewer who has never seen this screen
  * before understands the three states in two seconds, without reading all 8 rows
  * individually -- the hierarchy (passed recedes, the decision dominates, skipped reads
- * as skipped) does the rest.
+ * as skipped) does the rest. The legend's middle dot is neutral ink, not a fixed color
+ * -- the real stamp underneath can be red (stop), amber (human review), or bronze (a
+ * deliberate not-worked, a different KIND of thing from a stop -- see toneForRouteTo).
  */
 export function GuardrailTable({ call }: { call: GateCallRow }) {
   return (
@@ -26,7 +34,7 @@ export function GuardrailTable({ call }: { call: GateCallRow }) {
       <div className="gr-legend">
         <span className="gr-legend-item"><span className="gr-legend-glyph gr-legend-glyph-ok">{CHECK}</span>passed</span>
         <span className="gr-legend-item"><span className="gr-legend-dot" />decided this case</span>
-        <span className="gr-legend-item gr-legend-skip">never reached — short-circuited</span>
+        <span className="gr-legend-item gr-legend-skip">didn't run — an earlier check already decided</span>
       </div>
 
       {call.reason === "permitted" && (
@@ -42,11 +50,10 @@ export function GuardrailTable({ call }: { call: GateCallRow }) {
             <div key={row.name} className={`gr-row gr-row-fired gr-tone-${tone}`}>
               <span className="gr-index">{i + 1}</span>
               <div className="gr-fired-body">
-                <span className="gr-fired-name">{row.name}</span>
-                <span className="gr-fired-reason">FIRED — decided this case: {call.reason}</span>
                 <span className="gr-fired-plain">{guardrailPlainLanguage(call.reason)}</span>
+                <span className="gr-fired-name">{row.name} — decided this case, step {i + 1} of 8</span>
               </div>
-              <span className="gr-stamp">{tone === "warn" ? "review" : "stopped"}</span>
+              <span className="gr-stamp">{STAMP_TEXT[tone]}</span>
             </div>
           );
         }

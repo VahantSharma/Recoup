@@ -88,6 +88,19 @@
   color: var(--text-dim);
 }
 
+.figure-popover-link {
+  text-align: right;
+  word-break: break-all;
+  color: var(--accent);
+  text-decoration: underline dotted var(--accent);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.figure-popover-link:hover {
+  color: var(--ok);
+  text-decoration-style: solid;
+}
+
 .figure-popover-val {
   text-align: right;
   word-break: break-all;
@@ -135,4 +148,9 @@
 .figure-value-badge.badge-stop:hover,
 .figure-value-badge.badge-stop:focus-visible {
   background: var(--stop-tint);
+}
+
+.figure-value-badge.badge-policy:hover,
+.figure-value-badge.badge-policy:focus-visible {
+  background: var(--policy-tint);
 }

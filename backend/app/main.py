@@ -79,7 +79,8 @@ app.add_middleware(
         "http://localhost:5175", "http://127.0.0.1:5175",
         "http://localhost:5176", "http://127.0.0.1:5176",
     ],
-    allow_methods=["POST"],
+    allow_methods=["POST", "OPTIONS"],  # OPTIONS explicit: the browser's own preflight,
+                                          # not something a caller ever sends deliberately
     allow_headers=["*"],
 )
 

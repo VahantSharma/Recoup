@@ -25,6 +25,10 @@
   color: var(--stop);
 }
 
+.badge-policy {
+  color: var(--policy);
+}
+
 .badge-live {
   color: var(--ok);
 }

@@ -5,11 +5,7 @@ import { InfoTip } from "./InfoTip";
 import { LiveApiUnreachableError, verifyRecoveryAction, type LiveActionResponse } from "../lib/liveApi";
 import { guardrailPlainLanguage } from "../lib/plainLanguage";
 
-type RunState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "done"; result: LiveActionResponse };
+type RunStatus = "idle" | "loading" | "error";
 
 const ACTION_TAKEN_LABEL: Record<LiveActionResponse["action_taken"], string> = {
   created: "Created a real test-mode Payment Link, right now.",
@@ -26,18 +22,28 @@ const ACTION_TAKEN_LABEL: Record<LiveActionResponse["action_taken"], string> = {
 export function LiveVerificationPanel() {
   const [attemptNumber, setAttemptNumber] = useState(1);
   const [simulateResolvedElsewhere, setSimulateResolvedElsewhere] = useState(false);
-  const [run, setRun] = useState<RunState>({ status: "idle" });
+  const [status, setStatus] = useState<RunStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Kept separately from `status` and never cleared by a subsequent call starting --
+  // a replay/fresh-attempt click used to unmount this whole block the instant loading
+  // began, which reads as the buttons the reviewer just clicked glitching out from
+  // under the cursor. The previous result now stays on screen, dimmed, until the next
+  // one is ready to replace it.
+  const [lastResult, setLastResult] = useState<LiveActionResponse | null>(null);
 
   const execute = async (n: number, override: boolean) => {
-    setRun({ status: "loading" });
+    setStatus("loading");
+    setErrorMessage(null);
     try {
       const result = await verifyRecoveryAction(n, override);
-      setRun({ status: "done", result });
+      setLastResult(result);
+      setStatus("idle");
     } catch (err) {
       const message = err instanceof LiveApiUnreachableError || err instanceof Error
         ? err.message
         : String(err);
-      setRun({ status: "error", message });
+      setErrorMessage(message);
+      setStatus("error");
     }
   };
 
@@ -70,42 +76,55 @@ export function LiveVerificationPanel() {
             checked={simulateResolvedElsewhere}
             onChange={(e) => setSimulateResolvedElsewhere(e.target.checked)}
           />
-          pretend this payment resolved elsewhere
+          simulate: payment resolved elsewhere
           <InfoTip text="The real payment stays 'failed' in test mode forever, so the refusal path can otherwise never be seen live. Checking this forces that one value before the gate decides — the real fetched status is still shown, never hidden." />
         </label>
         <button
           type="button"
           className="live-panel-run"
-          disabled={run.status === "loading"}
+          disabled={status === "loading"}
           onClick={() => execute(attemptNumber, simulateResolvedElsewhere)}
         >
-          {run.status === "loading" ? "Calling Razorpay…" : "Verify live"}
+          {status === "loading" ? "Calling Razorpay…" : "Verify live"}
         </button>
       </div>
 
-      {run.status === "error" && (
+      {status === "error" && (
         <div className="live-panel-error">
-          <strong>Could not run this live.</strong> {run.message}
+          <strong>Could not run this live.</strong> {errorMessage}
         </div>
       )}
 
-      {run.status === "done" && <LiveResult result={run.result} onReplay={() => execute(attemptNumber, simulateResolvedElsewhere)}
-        onFresh={() => { const next = attemptNumber + 1; setAttemptNumber(next); execute(next, simulateResolvedElsewhere); }} />}
+      {lastResult && (
+        <LiveResult
+          result={lastResult}
+          updating={status === "loading"}
+          onReplay={() => execute(attemptNumber, simulateResolvedElsewhere)}
+          onFresh={() => {
+            const next = attemptNumber + 1;
+            setAttemptNumber(next);
+            execute(next, simulateResolvedElsewhere);
+          }}
+        />
+      )}
     </section>
   );
 }
 
 function LiveResult({
   result,
+  updating,
   onReplay,
   onFresh,
 }: {
   result: LiveActionResponse;
+  updating: boolean;
   onReplay: () => void;
   onFresh: () => void;
 }) {
   return (
-    <div className="live-result">
+    <div className={`live-result${updating ? " live-result-updating" : ""}`}>
+      {updating && <div className="live-result-updating-badge">updating…</div>}
       <div className="live-result-row">
         <span className="live-result-label">reconciled status (real, just now)</span>
         <span className="live-result-value">{result.reconciled_status_real}</span>
@@ -145,10 +164,10 @@ function LiveResult({
       )}
 
       <div className="live-result-actions">
-        <button type="button" className="live-panel-secondary" onClick={onReplay}>
+        <button type="button" className="live-panel-secondary" disabled={updating} onClick={onReplay}>
           Replay attempt #{result.attempt_number} again
         </button>
-        <button type="button" className="live-panel-secondary" onClick={onFresh}>
+        <button type="button" className="live-panel-secondary" disabled={updating} onClick={onFresh}>
           Try a fresh attempt (#{result.attempt_number + 1})
         </button>
       </div>

@@ -1,17 +1,17 @@
-import { useState } from "react";
 import "./InfoTip.css";
+import { useDismissiblePopover } from "../lib/useDismissiblePopover";
 
 /**
  * A small "what does this mean" affordance for a term a reviewer unfamiliar with the
  * product shouldn't have to already know -- decline_class_source, idempotency key,
- * short-circuited, and so on. Click/hover reveals one short, plain-language sentence.
+ * short-circuited, and so on. Click reveals one short, plain-language sentence.
  * Never a wall of text: if it needs more than a sentence, it belongs in copy on the
  * page, not a tooltip.
  */
 export function InfoTip({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen, ref } = useDismissiblePopover<HTMLSpanElement>();
   return (
-    <span className="infotip">
+    <span className="infotip" ref={ref}>
       <button
         type="button"
         className="infotip-trigger"

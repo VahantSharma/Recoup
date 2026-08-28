@@ -36,6 +36,14 @@
   --ok-tint: rgba(43, 86, 54, 0.08);
   --accent-tint: rgba(107, 78, 30, 0.08);
 
+  /* A fourth tone, deliberately: a deliberate non-action (break_even_floor -- the gate
+     COULD act but the expected value says don't) is a different kind of thing than a
+     compliance/fraud stop, and must never look identical to one -- see CLAUDE.md's
+     "declining to act is a feature, and it gets logged." Reuses --accent's bronze
+     rather than inventing a fifth hue -- the semantic set stays deliberately small. */
+  --policy: var(--accent);
+  --policy-tint: var(--accent-tint);
+
   /* --- type: serif for headings/voice, mono for every figure, sans for body --- */
   --font-display: "Newsreader", "Iowan Old Style", "Palatino Linotype", serif;
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
