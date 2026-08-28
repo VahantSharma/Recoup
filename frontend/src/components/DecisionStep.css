@@ -1,7 +1,27 @@
 .step {
+  --step-delay: 0ms; /* a custom property, unlike animation-delay, inherits down to
+                         .step-connector below regardless of intermediate elements --
+                         that's what keeps the connector's grow-in synced to its step's
+                         own fade-in instead of always firing at 0ms. */
   display: flex;
   gap: var(--sp-4);
+  opacity: 0;
+  transform: translateY(10px);
+  animation: step-in var(--dur-slow) var(--ease-out) forwards;
+  animation-delay: var(--step-delay);
 }
+
+@keyframes step-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered reveal, one step at a time, so switching cases reads as the trace walking
+   itself out again rather than the whole page just appearing -- --step-delay is set
+   inline per-step from its own `number` prop (DecisionStep.tsx), not by DOM position,
+   because the crafted-example banner some cases show sits before these in the DOM. */
 
 .step-rail {
   display: flex;
@@ -25,6 +45,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
 }
 
 .step-connector {
@@ -33,6 +54,14 @@
   border-left: 1px dashed var(--text-faint);
   margin: var(--sp-1) 0;
   min-height: var(--sp-4);
+  transform-origin: top;
+  animation: connector-grow var(--dur-slow) var(--ease-out) forwards;
+  animation-delay: var(--step-delay);
+}
+
+@keyframes connector-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
 }
 
 .step-body {
@@ -54,4 +83,10 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   padding: var(--sp-4) var(--sp-6);
+  transition: border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+
+.step-card:hover {
+  border-color: var(--text-faint);
+  box-shadow: var(--shadow-sm);
 }

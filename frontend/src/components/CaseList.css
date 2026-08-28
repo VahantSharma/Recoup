@@ -20,6 +20,25 @@
   flex-direction: column;
 }
 
+.case-list-items > li {
+  opacity: 0;
+  animation: case-row-in var(--dur-base) var(--ease-out) forwards;
+}
+
+@keyframes case-row-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.case-list-items > li:nth-child(1) { animation-delay: 30ms; }
+.case-list-items > li:nth-child(2) { animation-delay: 75ms; }
+.case-list-items > li:nth-child(3) { animation-delay: 120ms; }
+.case-list-items > li:nth-child(4) { animation-delay: 165ms; }
+.case-list-items > li:nth-child(5) { animation-delay: 210ms; }
+.case-list-items > li:nth-child(6) { animation-delay: 255ms; }
+.case-list-items > li:nth-child(7) { animation-delay: 300ms; }
+.case-list-items > li:nth-child(8) { animation-delay: 345ms; }
+
 .case-row {
   width: 100%;
   text-align: left;
@@ -32,11 +51,13 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  transition: background 120ms, padding 120ms;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+    padding var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 
 .case-row:hover {
   background: var(--surface-2);
+  transform: translateX(2px);
 }
 
 .case-row-selected,
@@ -47,32 +68,40 @@
   padding-left: var(--sp-3);
   padding-right: var(--sp-3);
   border-bottom-color: var(--surface-2);
+  transform: none;
 }
 
 .case-row-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-2);
 }
 
-.case-row-id {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
+.case-row-summary {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 14.5px;
   color: var(--text);
+  line-height: 1.4;
+}
+
+.case-row-tech {
+  display: flex;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  overflow: hidden;
+}
+
+.case-row-id {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.case-row-mid {
-  display: flex;
-}
-
-.case-row-reason {
-  font-family: var(--font-mono);
-  font-size: var(--t-xs-size);
-  color: var(--text-faint);
+.case-row-tech-sep {
+  flex-shrink: 0;
 }
 
 /* --- unreachable guardrails footnote --- */

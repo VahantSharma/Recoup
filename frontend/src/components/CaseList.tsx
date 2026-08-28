@@ -2,6 +2,7 @@ import "./CaseList.css";
 import { Badge } from "./Badge";
 import { InfoTip } from "./InfoTip";
 import { decisiveReason, describeOutcome } from "../lib/outcome";
+import { plainLanguageSummary } from "../lib/plainLanguage";
 import type { CaseAuditRow, UnreachableGuardrailNote } from "../lib/artifacts/types";
 
 /**
@@ -43,13 +44,15 @@ export function CaseList({
                 aria-current={isSelected}
               >
                 <div className="case-row-top">
-                  <span className="case-row-id" title={row.case_id}>{row.case_id}</span>
+                  <Badge label={outcome.label} tone={outcome.tone} />
                   {isLive && <Badge label="verified live" tone="ok" />}
                 </div>
-                <div className="case-row-mid">
-                  <Badge label={outcome.label} tone={outcome.tone} />
+                <p className="case-row-summary">{plainLanguageSummary(row)}</p>
+                <div className="case-row-tech" title={row.case_id}>
+                  <span className="case-row-id">{row.case_id}</span>
+                  <span className="case-row-tech-sep">·</span>
+                  <span>{reason}</span>
                 </div>
-                <div className="case-row-reason">{reason}</div>
               </button>
             </li>
           );

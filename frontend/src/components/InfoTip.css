@@ -12,12 +12,13 @@
   color: var(--text-faint);
   cursor: pointer;
   display: inline-flex;
-  transition: color 120ms;
+  transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 }
 
 .infotip-trigger:hover,
 .infotip-trigger:focus-visible {
   color: var(--accent);
+  transform: scale(1.15);
 }
 
 .infotip-bubble {
@@ -25,7 +26,6 @@
   z-index: 30;
   bottom: 100%;
   left: 50%;
-  transform: translateX(-50%);
   margin-bottom: 7px;
   background: var(--text);
   color: var(--bg);
@@ -39,6 +39,13 @@
   border-radius: var(--radius-card);
   width: max-content;
   max-width: 260px;
+  box-shadow: var(--shadow-md);
+  animation: infotip-in var(--dur-fast) var(--ease-out) forwards;
+}
+
+@keyframes infotip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px) scale(0.94); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }
 
 .infotip-bubble::after {

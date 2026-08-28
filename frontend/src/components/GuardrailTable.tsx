@@ -1,5 +1,6 @@
 import "./GuardrailTable.css";
 import { toneForRouteTo } from "../lib/outcome";
+import { guardrailPlainLanguage } from "../lib/plainLanguage";
 import type { GateCallRow } from "../lib/artifacts/types";
 
 const CHECK = (
@@ -31,7 +32,7 @@ export function GuardrailTable({ call }: { call: GateCallRow }) {
       {call.reason === "permitted" && (
         <div className="gr-row gr-row-approved">
           <span className="gr-check-lg" aria-hidden="true">{CHECK}</span>
-          <span>all 8 guardrails cleared — action permitted</span>
+          <span>all 8 guardrails cleared — {guardrailPlainLanguage("permitted")}</span>
         </div>
       )}
       {call.guardrail_table.map((row, i) => {
@@ -43,6 +44,7 @@ export function GuardrailTable({ call }: { call: GateCallRow }) {
               <div className="gr-fired-body">
                 <span className="gr-fired-name">{row.name}</span>
                 <span className="gr-fired-reason">FIRED — decided this case: {call.reason}</span>
+                <span className="gr-fired-plain">{guardrailPlainLanguage(call.reason)}</span>
               </div>
               <span className="gr-stamp">{tone === "warn" ? "review" : "stopped"}</span>
             </div>

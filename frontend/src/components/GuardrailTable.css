@@ -3,6 +3,33 @@
   flex-direction: column;
 }
 
+/* Every direct child (the legend, the approved banner, each of the 8 rows) walks in
+   one at a time -- the guardrail chain reads as being checked in sequence, live, not
+   as a table that was just always there. Custom property, not animation-delay
+   directly, so .gr-stamp below can add its own offset on top of its row's. */
+.gr-table > * {
+  --row-delay: 0ms;
+  opacity: 0;
+  animation: gr-row-in var(--dur-base) var(--ease-out) forwards;
+  animation-delay: var(--row-delay);
+}
+
+@keyframes gr-row-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.gr-table > *:nth-child(1) { --row-delay: 20ms; }
+.gr-table > *:nth-child(2) { --row-delay: 80ms; }
+.gr-table > *:nth-child(3) { --row-delay: 140ms; }
+.gr-table > *:nth-child(4) { --row-delay: 200ms; }
+.gr-table > *:nth-child(5) { --row-delay: 260ms; }
+.gr-table > *:nth-child(6) { --row-delay: 320ms; }
+.gr-table > *:nth-child(7) { --row-delay: 380ms; }
+.gr-table > *:nth-child(8) { --row-delay: 440ms; }
+.gr-table > *:nth-child(9) { --row-delay: 500ms; }
+.gr-table > *:nth-child(10) { --row-delay: 560ms; }
+
 .gr-legend {
   display: flex;
   flex-wrap: wrap;
@@ -101,6 +128,13 @@
   border-radius: var(--radius-badge);
   margin: var(--sp-2) 0;
   padding: var(--sp-2) var(--sp-3);
+  animation-name: gr-fired-in; /* overrides the generic gr-row-in on this one child --
+                                   the decision gets a heavier landing, not just a slide */
+}
+
+@keyframes gr-fired-in {
+  from { opacity: 0; transform: scale(0.97) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .gr-tone-stop {
@@ -142,6 +176,14 @@
   font-size: 11.5px;
 }
 
+.gr-fired-plain {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
 .gr-stamp {
   flex-shrink: 0;
   font-family: var(--font-mono);
@@ -157,8 +199,17 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  transform: rotate(-8deg);
-  opacity: 0.85;
+  opacity: 0;
+  animation: gr-stamp-down var(--dur-slow) var(--ease-spring) forwards;
+  /* lands a beat after its own row has faded in, and independently of the generic
+     .gr-table > * stagger above (this element isn't a direct child of .gr-table) */
+  animation-delay: calc(var(--row-delay) + 260ms);
+}
+
+@keyframes gr-stamp-down {
+  0% { opacity: 0; transform: scale(1.8) rotate(4deg); }
+  60% { opacity: 1; }
+  100% { opacity: 0.85; transform: scale(1) rotate(-8deg); }
 }
 
 /* --- not evaluated: short-circuited --- */

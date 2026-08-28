@@ -11,6 +11,7 @@ import { DecisionStep } from "./DecisionStep";
 import { Figure } from "./Figure";
 import { GuardrailTable } from "./GuardrailTable";
 import { InfoTip } from "./InfoTip";
+import { LiveVerificationPanel } from "./LiveVerificationPanel";
 
 const CASE_AUDIT_URL = "/data/case_audit.json";
 
@@ -97,7 +98,13 @@ export function CaseAuditScreen() {
           liveCaseId={envelope.data.default_case_id}
           unreachable={envelope.data.structurally_unreachable_guardrails}
         />
-        <CaseTrace key={selected.case_id} row={selected} manifest={manifest} artifactUrl={CASE_AUDIT_URL} />
+        <CaseTrace
+          key={selected.case_id}
+          row={selected}
+          manifest={manifest}
+          artifactUrl={CASE_AUDIT_URL}
+          isLiveCase={selected.case_id === envelope.data.default_case_id}
+        />
       </div>
     </main>
   );
@@ -107,10 +114,12 @@ function CaseTrace({
   row,
   manifest,
   artifactUrl,
+  isLiveCase,
 }: {
   row: CaseAuditRow;
   manifest: ArtifactEnvelope<CaseAuditArtifact>["manifest"];
   artifactUrl: string;
+  isLiveCase: boolean;
 }) {
   const decisive = row.gate_calls[row.gate_calls.length - 1] ?? null;
   const p = <T,>(v: T) => withProvenance(v, manifest, artifactUrl);
@@ -211,6 +220,8 @@ function CaseTrace({
           <Badge label={describeOutcome(row).label} tone={describeOutcome(row).tone} />
         </div>
       </DecisionStep>
+
+      {isLiveCase && <LiveVerificationPanel />}
     </div>
   );
 }

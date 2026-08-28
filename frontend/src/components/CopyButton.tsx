@@ -19,8 +19,22 @@ export function CopyButton({ value }: { value: string }) {
   };
 
   return (
-    <button type="button" className="copy-button" onClick={onClick} title="Copy full value">
-      {copied ? "copied" : "copy"}
+    <button
+      type="button"
+      className={`copy-button${copied ? " copy-button-copied" : ""}`}
+      onClick={onClick}
+      title="Copy full value"
+    >
+      {copied ? (
+        <span className="copy-button-done">
+          copied
+          <svg width="9" height="9" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M3 8.5 6.5 12 13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      ) : (
+        "copy"
+      )}
     </button>
   );
 }

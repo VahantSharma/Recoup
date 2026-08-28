@@ -28,6 +28,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -63,6 +64,24 @@ LIVE_CASE_ERROR_DESCRIPTION = "Payment failed"
 RESOLVED_ELSEWHERE_DEMO_STATUS = "captured"
 
 app = FastAPI(title="Recoup -- live verification endpoint")
+
+# The case audit screen (frontend/) calls this endpoint directly from the browser, on
+# whatever port `npm run dev`/`vite preview` picked -- a local demonstration instrument
+# a judge runs on their own machine, not a deployed public service, so a fixed allowlist
+# of the common local dev ports is the right amount of caution: permissive enough that
+# the demo isn't fragile to which port Vite happened to pick, without being a bare "*".
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173", "http://127.0.0.1:5173",  # vite dev default
+        "http://localhost:4173", "http://127.0.0.1:4173",  # vite preview default
+        "http://localhost:5174", "http://127.0.0.1:5174",  # vite dev, port already taken
+        "http://localhost:5175", "http://127.0.0.1:5175",
+        "http://localhost:5176", "http://127.0.0.1:5176",
+    ],
+    allow_methods=["POST"],
+    allow_headers=["*"],
+)
 
 
 class LiveActionResponse(BaseModel):

@@ -23,3 +23,17 @@ body {
 button {
   font-family: inherit;
 }
+
+/* A judge who has motion sensitivity reduced at the OS level gets every animation and
+   transition on the page collapsed to effectively instant -- not a partial pass, the
+   whole system. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -18,7 +18,8 @@
   overflow-wrap: anywhere;
   text-decoration: underline dotted var(--accent);
   text-underline-offset: 3px;
-  transition: color 120ms, background 120ms;
+  border-radius: 2px;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
 .figure-value:hover,
@@ -54,6 +55,14 @@
   max-width: 420px;
   font-family: var(--font-mono);
   font-size: var(--t-sm-size);
+  box-shadow: var(--shadow-lg);
+  transform-origin: top left;
+  animation: figure-pop-in var(--dur-fast) var(--ease-out) forwards;
+}
+
+@keyframes figure-pop-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .figure-popover-intro {
