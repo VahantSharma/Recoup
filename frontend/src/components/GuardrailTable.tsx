@@ -2,23 +2,35 @@ import "./GuardrailTable.css";
 import { toneForRouteTo } from "../lib/outcome";
 import type { GateCallRow } from "../lib/artifacts/types";
 
+const CHECK = (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M3 8.5 6.5 12 13 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 /**
  * One gate call's 8 guardrail rows, in their real checked order (app.gate.
- * GUARDRAIL_ORDER). Per Change 1 of the original approved plan: this shows only what
- * actually happened -- evaluation really did stop at the first hit, so everything
- * after that point is marked "not evaluated," never a hypothetical verdict for a
- * guardrail evaluate() never reached.
+ * GUARDRAIL_ORDER). This shows only what actually happened -- evaluation really did
+ * stop at the first hit, so everything after that point is marked "not evaluated,"
+ * never a hypothetical verdict for a guardrail evaluate() never reached.
  *
- * Hierarchy is the whole point of this component: passed rows recede (small, faint),
- * the deciding row dominates (full-width band, its reason shown inline), and
- * not-evaluated rows read clearly as never having run.
+ * A one-line legend precedes the rows so a reviewer who has never seen this screen
+ * before understands the three states in two seconds, without reading all 8 rows
+ * individually -- the hierarchy (passed recedes, the decision dominates, skipped reads
+ * as skipped) does the rest.
  */
 export function GuardrailTable({ call }: { call: GateCallRow }) {
   return (
     <div className="gr-table">
+      <div className="gr-legend">
+        <span className="gr-legend-item"><span className="gr-legend-glyph gr-legend-glyph-ok">{CHECK}</span>passed</span>
+        <span className="gr-legend-item"><span className="gr-legend-dot" />decided this case</span>
+        <span className="gr-legend-item gr-legend-skip">never reached — short-circuited</span>
+      </div>
+
       {call.reason === "permitted" && (
         <div className="gr-row gr-row-approved">
-          <span className="gr-check" aria-hidden="true">✓</span>
+          <span className="gr-check-lg" aria-hidden="true">{CHECK}</span>
           <span>all 8 guardrails cleared — action permitted</span>
         </div>
       )}
@@ -30,8 +42,9 @@ export function GuardrailTable({ call }: { call: GateCallRow }) {
               <span className="gr-index">{i + 1}</span>
               <div className="gr-fired-body">
                 <span className="gr-fired-name">{row.name}</span>
-                <span className="gr-fired-reason">FIRED — {call.reason}</span>
+                <span className="gr-fired-reason">FIRED — decided this case: {call.reason}</span>
               </div>
+              <span className="gr-stamp">{tone === "warn" ? "review" : "stopped"}</span>
             </div>
           );
         }
@@ -39,7 +52,7 @@ export function GuardrailTable({ call }: { call: GateCallRow }) {
           return (
             <div key={row.name} className="gr-row gr-row-passed">
               <span className="gr-index">{i + 1}</span>
-              <span className="gr-check" aria-hidden="true">✓</span>
+              <span className="gr-check" aria-hidden="true">{CHECK}</span>
               <span className="gr-name">{row.name}</span>
             </div>
           );

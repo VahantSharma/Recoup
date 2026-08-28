@@ -7,19 +7,20 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 24px;
+  width: 32px;
   flex-shrink: 0;
 }
 
 .step-circle {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  color: var(--accent);
-  font-size: var(--t-xs-size);
-  font-weight: 600;
+  background: var(--bg);
+  border: 1.5px solid var(--border-strong);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,7 +30,7 @@
 .step-connector {
   flex: 1;
   width: 0;
-  border-left: 1px solid var(--border);
+  border-left: 1px dashed var(--text-faint);
   margin: var(--sp-1) 0;
   min-height: var(--sp-4);
 }
@@ -41,9 +42,10 @@
 }
 
 .step-title {
+  font-family: var(--font-display);
   font-size: var(--t-lg-size);
   font-weight: var(--t-lg-weight);
-  margin: 0 0 var(--sp-2);
+  margin: 2px 0 var(--sp-2);
   color: var(--text);
 }
 
@@ -51,5 +53,5 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  padding: var(--sp-4);
+  padding: var(--sp-4) var(--sp-6);
 }

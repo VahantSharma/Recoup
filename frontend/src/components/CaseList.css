@@ -1,6 +1,15 @@
 .case-list {
-  width: 320px;
+  width: 300px;
   flex-shrink: 0;
+}
+
+.case-list-label {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs-size);
+  letter-spacing: var(--t-xs-tracking);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: var(--sp-3);
 }
 
 .case-list-items {
@@ -9,32 +18,35 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-1);
 }
 
 .case-row {
   width: 100%;
   text-align: left;
   background: transparent;
-  border: 1px solid transparent;
-  border-left: 2px solid transparent;
-  border-radius: var(--radius-card);
-  padding: var(--sp-2) var(--sp-3);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  padding: var(--sp-3) var(--sp-1);
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  transition: background 120ms, border-color 120ms;
+  gap: 6px;
+  transition: background 120ms, padding 120ms;
 }
 
 .case-row:hover {
-  background: var(--surface);
+  background: var(--surface-2);
 }
 
 .case-row-selected,
 .case-row-selected:hover {
   background: var(--surface-2);
-  border-left-color: var(--accent);
+  border-left-color: var(--border-strong);
+  margin: 0 calc(-1 * var(--sp-3));
+  padding-left: var(--sp-3);
+  padding-right: var(--sp-3);
+  border-bottom-color: var(--surface-2);
 }
 
 .case-row-top {
@@ -46,7 +58,7 @@
 
 .case-row-id {
   font-family: var(--font-mono);
-  font-size: var(--t-xs-size);
+  font-size: 11.5px;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -58,8 +70,9 @@
 }
 
 .case-row-reason {
+  font-family: var(--font-mono);
   font-size: var(--t-xs-size);
-  color: var(--text-dim);
+  color: var(--text-faint);
 }
 
 /* --- unreachable guardrails footnote --- */
@@ -71,6 +84,7 @@
 
 .unreachable-collapsed summary {
   cursor: pointer;
+  font-family: var(--font-mono);
   font-size: var(--t-xs-size);
   letter-spacing: var(--t-xs-tracking);
   text-transform: uppercase;
@@ -87,16 +101,19 @@
 }
 
 .unreachable-name {
+  font-family: var(--font-mono);
   font-size: var(--t-sm-size);
   color: var(--text);
   font-weight: 600;
 }
 
 .unreachable-why {
-  font-size: var(--t-xs-size);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 12.5px;
   color: var(--text-dim);
-  margin: 2px 0 0;
-  line-height: 1.5;
+  margin: 3px 0 0;
+  line-height: 1.6;
 }
 
 @media (max-width: 900px) {

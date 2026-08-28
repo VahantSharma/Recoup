@@ -1,5 +1,6 @@
 import "./CaseList.css";
 import { Badge } from "./Badge";
+import { InfoTip } from "./InfoTip";
 import { decisiveReason, describeOutcome } from "../lib/outcome";
 import type { CaseAuditRow, UnreachableGuardrailNote } from "../lib/artifacts/types";
 
@@ -23,6 +24,10 @@ export function CaseList({
 }) {
   return (
     <nav className="case-list" aria-label="cases">
+      <div className="case-list-label">
+        Cases in this batch
+        <InfoTip text="Every row is a real outcome from one deterministic run, not a hand-picked example — one per guardrail this gate can actually fire, plus the one real payment." />
+      </div>
       <ul className="case-list-items">
         {cases.map((row) => {
           const outcome = describeOutcome(row);
@@ -38,7 +43,7 @@ export function CaseList({
                 aria-current={isSelected}
               >
                 <div className="case-row-top">
-                  <span className="case-row-id">{row.case_id}</span>
+                  <span className="case-row-id" title={row.case_id}>{row.case_id}</span>
                   {isLive && <Badge label="verified live" tone="ok" />}
                 </div>
                 <div className="case-row-mid">
@@ -52,7 +57,9 @@ export function CaseList({
       </ul>
 
       <details className="unreachable-collapsed">
-        <summary>structurally unreachable guardrails ({unreachable.length})</summary>
+        <summary>
+          {unreachable.length} guardrails this batch can't demonstrate
+        </summary>
         <ul className="unreachable-list">
           {unreachable.map((n) => (
             <li key={n.name}>

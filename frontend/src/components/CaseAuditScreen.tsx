@@ -10,6 +10,7 @@ import { CopyButton } from "./CopyButton";
 import { DecisionStep } from "./DecisionStep";
 import { Figure } from "./Figure";
 import { GuardrailTable } from "./GuardrailTable";
+import { InfoTip } from "./InfoTip";
 
 const CASE_AUDIT_URL = "/data/case_audit.json";
 
@@ -69,18 +70,23 @@ export function CaseAuditScreen() {
 
   return (
     <main className="screen">
-      <header className="screen-header">
-        <h1>Recoup — Case Audit</h1>
-        <p className="screen-subtitle">
-          One failed payment, end to end: failure reason, classification, every
-          guardrail's real verdict, the proposed action, the idempotency key, the outcome.
-        </p>
-      </header>
+      <div className="masthead">
+        <div className="masthead-wordmark">
+          <span className="masthead-mark">Recoup</span>
+          <span className="masthead-tag">a ledger of every decision, not just the wins</span>
+        </div>
+        <div className="masthead-right">Case Audit</div>
+      </div>
+      <p className="screen-subtitle">
+        Pick any case on the left. Each one walks the same five questions a payments
+        engineer asks: why it failed, how it was classified, what the gate decided and
+        why, what happened next, and how it ended.
+      </p>
 
       <div className="provenance-strip">
         Every figure on this page resolves to run manifest{" "}
-        <span className="provenance-strip-sha">{shortSha}</span> — click any value to
-        see its source.
+        <span className="provenance-strip-sha">{shortSha}</span> — click any
+        <em> dotted</em> value to see exactly which run produced it.
       </div>
 
       <div className="screen-layout">
@@ -91,7 +97,7 @@ export function CaseAuditScreen() {
           liveCaseId={envelope.data.default_case_id}
           unreachable={envelope.data.structurally_unreachable_guardrails}
         />
-        <CaseTrace row={selected} manifest={manifest} artifactUrl={CASE_AUDIT_URL} />
+        <CaseTrace key={selected.case_id} row={selected} manifest={manifest} artifactUrl={CASE_AUDIT_URL} />
       </div>
     </main>
   );
@@ -138,14 +144,20 @@ function CaseTrace({
           <Figure value={p(`₹${(row.amount_paise / 100).toFixed(2)}`)} />
         </div>
         <div className="kv-row">
-          <span className="kv-label">decline_class_source</span>
+          <span className="kv-label">
+            evidence
+            <InfoTip text="harvested = this exact failure was observed on a real Razorpay test-mode API call. documented = a realistic case built from Razorpay's published reason strings, not this specific payment." />
+          </span>
           <Figure value={p(row.decline_class_source)} badgeTone={row.decline_class_source === "harvested" ? "ok" : "warn"} />
         </div>
       </DecisionStep>
 
       <DecisionStep number={2} title="Classified">
         <div className="kv-row">
-          <span className="kv-label">taxonomy branch</span>
+          <span className="kv-label">
+            taxonomy branch
+            <InfoTip text="Razorpay publishes the reason string ('debit_instrument_blocked') but not whether it's retryable. Sorting it into hard / soft / technical — and therefore whether a retry is even attempted — is Recoup's own judgment call." />
+          </span>
           <Figure value={p(row.decline_class)} />
         </div>
         <p className="step-note">
@@ -169,7 +181,10 @@ function CaseTrace({
         </div>
         {decisive?.decision === "approved" ? (
           <div className="kv-row">
-            <span className="kv-label">idempotency key</span>
+            <span className="kv-label">
+              idempotency key
+              <InfoTip text="A fingerprint of (case, attempt number) checked before every money-touching action. If this exact action were ever replayed — a retry, a crash recovery — the same key catches it and the second attempt becomes a no-op, never a second charge." />
+            </span>
             <span className="idempotency-value">
               <Figure value={p(`${decisive.idempotency_key.slice(0, 12)}…`)} mono />
               <CopyButton value={decisive.idempotency_key} />
@@ -177,7 +192,10 @@ function CaseTrace({
           </div>
         ) : (
           <div className="kv-row">
-            <span className="kv-label">idempotency key</span>
+            <span className="kv-label">
+              idempotency key
+              <InfoTip text="Only derived once an action actually executes. This case was refused before that point, so there is nothing to replay-protect." />
+            </span>
             <span className="step-note-inline">not consumed — no action was taken</span>
           </div>
         )}

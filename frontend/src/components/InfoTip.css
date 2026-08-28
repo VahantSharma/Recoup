@@ -1,0 +1,52 @@
+.infotip {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 5px;
+}
+
+.infotip-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-faint);
+  cursor: pointer;
+  display: inline-flex;
+  transition: color 120ms;
+}
+
+.infotip-trigger:hover,
+.infotip-trigger:focus-visible {
+  color: var(--accent);
+}
+
+.infotip-bubble {
+  position: absolute;
+  z-index: 30;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 7px;
+  background: var(--text);
+  color: var(--bg);
+  font-family: var(--font-sans);
+  font-size: var(--t-xs-size);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.5;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-card);
+  width: max-content;
+  max-width: 260px;
+}
+
+.infotip-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--text);
+}

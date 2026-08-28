@@ -1,12 +1,13 @@
 .copy-button {
-  background: var(--surface-2);
+  background: transparent;
   border: 1px solid var(--border);
   color: var(--text-dim);
+  font-family: var(--font-mono);
   font-size: var(--t-xs-size);
   letter-spacing: var(--t-xs-tracking);
   text-transform: uppercase;
   border-radius: var(--radius-badge);
-  padding: 2px var(--sp-2);
+  padding: 1px var(--sp-2);
   cursor: pointer;
   transition: color 120ms, border-color 120ms;
 }

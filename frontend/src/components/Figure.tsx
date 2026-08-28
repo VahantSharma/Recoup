@@ -50,6 +50,10 @@ export function Figure<T>({
       </button>
       {open && (
         <div className="figure-popover" role="dialog">
+          <p className="figure-popover-intro">
+            Computed in a real, reproducible run — not asserted. Re-run the script
+            below at this exact commit and every figure on this screen reproduces.
+          </p>
           <div className="figure-popover-row">
             <span className="figure-popover-key">artifact</span>
             <span className="figure-popover-val">{value.artifactUrl}</span>

@@ -1,45 +1,51 @@
 /* Design tokens -- the one source of color/type/space every component draws from.
-   Stages 3-5 inherit this file, not one-off styles per screen. A hex code, a raw px
-   font-size, or a raw px margin anywhere outside this file is a bug -- see
-   frontend/README.md's "design system" note. */
+   "Ledger" direction: warm paper, ink, a restrained gold accent -- financial-heritage
+   trust rather than a generic dark SaaS dashboard. Stages 3-5 inherit this file, not
+   one-off styles per screen. A hex code, a raw px font-size, or a raw px margin
+   anywhere outside this file is a bug -- see frontend/README.md's "design system" note.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
 :root {
-  /* --- color: dark theme, near-black, not pure black --- */
-  --bg: #0d1117; /* page */
-  --surface: #161b22; /* cards */
-  --surface-2: #1c2128; /* nested / hover */
-  --border: #30363d;
+  /* --- color: warm paper, ink, a restrained gold accent --- */
+  --bg: #f6f1e6; /* page -- warm paper, not stark white */
+  --surface: #ffffff59; /* cards -- a faint lift off the paper */
+  --surface-2: #efe7d4; /* nested / hover / selected */
+  --border: #d6c9a8; /* hairline rule */
+  --border-strong: #211c13; /* the masthead's heavier rule */
 
-  --text: #e6edf3; /* primary */
-  --text-dim: #8b949e; /* labels, secondary */
-  --text-faint: #6e7681; /* de-emphasized rows */
+  --text: #211c13; /* ink -- primary */
+  --text-dim: #6b6152; /* labels, secondary */
+  --text-faint: #a89c81; /* de-emphasized rows */
 
   /* Semantic color is SCARCE. Passed-and-uninteresting rows are --text-faint, never
      green. Green appears only on a permitted action or a recovered outcome. */
-  --stop: #f85149; /* the deciding refusal */
-  --warn: #d29922; /* human review / escalation / deliberate non-action */
-  --ok: #3fb950; /* permitted / recovered */
-  --accent: #58a6ff; /* links, provenance affordance */
+  --stop: #9a3b2e; /* the deciding refusal -- brick / rejection-stamp red */
+  --warn: #96700a; /* human review / escalation / deliberate non-action */
+  --ok: #3f6b46; /* permitted / recovered */
+  --accent: #8a6a2e; /* aged gold -- links, provenance affordance */
 
-  /* 12%-opacity tints of the semantic colors, for badge/band backgrounds -- never a
-     solid fill. Pre-mixed here so components never hand-roll an rgba(). */
-  --stop-tint: rgba(248, 81, 73, 0.12);
-  --warn-tint: rgba(210, 153, 34, 0.12);
-  --ok-tint: rgba(63, 185, 80, 0.12);
-  --accent-tint: rgba(88, 166, 255, 0.12);
+  /* 10%-opacity tints of the semantic colors, for band backgrounds -- never a solid
+     fill. Pre-mixed here so components never hand-roll an rgba(). */
+  --stop-tint: rgba(154, 59, 46, 0.08);
+  --warn-tint: rgba(150, 112, 10, 0.08);
+  --ok-tint: rgba(63, 107, 70, 0.08);
+  --accent-tint: rgba(138, 106, 46, 0.08);
 
-  /* --- type: one family, system stack; monospace only for ids/keys/hashes --- */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* --- type: serif for headings/voice, mono for every figure, sans for body --- */
+  --font-display: "Newsreader", "Iowan Old Style", "Palatino Linotype", serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --t-xs-size: 11px;
+  --t-xs-size: 10.5px;
   --t-xs-weight: 500;
-  --t-xs-tracking: 0.04em;
+  --t-xs-tracking: 0.07em;
   --t-sm-size: 13px;
-  --t-md-size: 15px;
-  --t-lg-size: 20px;
+  --t-md-size: 14.5px;
+  --t-lg-size: 21px;
   --t-lg-weight: 600;
-  --t-xl-size: 28px;
+  --t-xl-size: 30px;
   --t-xl-weight: 600;
 
   /* --- space: 4px base --- */
@@ -51,8 +57,8 @@
   --sp-8: 32px;
   --sp-12: 48px;
 
-  --radius-card: 6px;
-  --radius-badge: 4px;
+  --radius-card: 3px;
+  --radius-badge: 2px;
 
-  color-scheme: dark;
+  color-scheme: light;
 }

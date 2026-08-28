@@ -9,44 +9,33 @@
   border: none;
   color: var(--text);
   font: inherit;
+  font-family: var(--font-mono);
   font-size: var(--t-md-size);
   cursor: pointer;
   padding: 0;
   text-align: left;
   word-break: break-word;
   overflow-wrap: anywhere;
-  text-decoration: underline dotted var(--text-faint);
+  text-decoration: underline dotted var(--accent);
   text-underline-offset: 3px;
-  transition: color 120ms, text-decoration-color 120ms;
+  transition: color 120ms, background 120ms;
 }
 
 .figure-value:hover,
 .figure-value:focus-visible {
   color: var(--accent);
-  text-decoration-style: solid;
-  text-decoration-color: var(--accent);
+  background: var(--accent-tint);
 }
 
 .figure-value-mono {
-  font-family: var(--font-mono);
   font-size: var(--t-sm-size);
 }
 
-/* A Figure rendered as a badge pill (e.g. decline_class_source) -- still clickable,
-   provenance included, .badge-<tone> (Badge.css) supplies the color/tint. */
-.figure-value-badge {
-  text-decoration: none;
-  cursor: pointer;
-  transition: filter 120ms;
-}
-
-.figure-value-badge:hover,
-.figure-value-badge:focus-visible {
-  filter: brightness(1.25);
-  color: inherit;
-}
-
 .figure-label {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs-size);
+  letter-spacing: var(--t-xs-tracking);
+  text-transform: uppercase;
   color: var(--text-dim);
   text-decoration: none;
 }
@@ -57,13 +46,25 @@
   top: 100%;
   left: 0;
   margin-top: var(--sp-2);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-card);
   padding: var(--sp-3) var(--sp-4);
   min-width: 320px;
   max-width: 420px;
+  font-family: var(--font-mono);
   font-size: var(--t-sm-size);
+}
+
+.figure-popover-intro {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--text-dim);
+  margin: 0 0 var(--sp-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px dashed var(--border);
+  line-height: 1.5;
 }
 
 .figure-popover-row {
@@ -71,7 +72,7 @@
   justify-content: space-between;
   gap: var(--sp-4);
   padding: var(--sp-1) 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px dotted var(--border);
 }
 
 .figure-popover-key {
@@ -84,7 +85,6 @@
 }
 
 .figure-mono {
-  font-family: var(--font-mono);
   font-size: var(--t-xs-size);
 }
 
@@ -100,7 +100,30 @@
 .figure-popover-details pre {
   font-size: var(--t-xs-size);
   overflow-x: auto;
-  background: var(--bg);
+  background: var(--surface-2);
   padding: var(--sp-2);
   border-radius: var(--radius-badge);
+}
+
+/* A Figure rendered as a badge pill (e.g. decline_class_source) -- still clickable,
+   provenance included, .badge-<tone> (Badge.css) supplies the color/border. */
+.figure-value-badge {
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.figure-value-badge.badge-ok:hover,
+.figure-value-badge.badge-ok:focus-visible {
+  background: var(--ok-tint);
+}
+
+.figure-value-badge.badge-warn:hover,
+.figure-value-badge.badge-warn:focus-visible {
+  background: var(--warn-tint);
+}
+
+.figure-value-badge.badge-stop:hover,
+.figure-value-badge.badge-stop:focus-visible {
+  background: var(--stop-tint);
 }
