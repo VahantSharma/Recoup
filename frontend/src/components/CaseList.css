@@ -1,0 +1,106 @@
+.case-list {
+  width: 320px;
+  flex-shrink: 0;
+}
+
+.case-list-items {
+  list-style: none;
+  margin: 0 0 var(--sp-6);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.case-row {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-card);
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 120ms, border-color 120ms;
+}
+
+.case-row:hover {
+  background: var(--surface);
+}
+
+.case-row-selected,
+.case-row-selected:hover {
+  background: var(--surface-2);
+  border-left-color: var(--accent);
+}
+
+.case-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.case-row-id {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs-size);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.case-row-mid {
+  display: flex;
+}
+
+.case-row-reason {
+  font-size: var(--t-xs-size);
+  color: var(--text-dim);
+}
+
+/* --- unreachable guardrails footnote --- */
+
+.unreachable-collapsed {
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-3);
+}
+
+.unreachable-collapsed summary {
+  cursor: pointer;
+  font-size: var(--t-xs-size);
+  letter-spacing: var(--t-xs-tracking);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.unreachable-list {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.unreachable-name {
+  font-size: var(--t-sm-size);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.unreachable-why {
+  font-size: var(--t-xs-size);
+  color: var(--text-dim);
+  margin: 2px 0 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .case-list {
+    width: 100%;
+  }
+}

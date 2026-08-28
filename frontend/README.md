@@ -4,6 +4,17 @@ React + Vite + TypeScript. A demonstration instrument for one viewer, five minut
 `../docs/day5surfaceplan.md` for the full build order and scope (binding; not
 relitigated here).
 
+## Design system
+
+`src/styles/tokens.css` is the single source for every color, type size, and spacing
+value on the site — hand-rolled CSS, no component library, no Tailwind. Every
+component's own stylesheet (one plain `.css` file per component, imported by that
+component only) draws from these tokens; a raw hex code or an ad-hoc px value outside
+`tokens.css` is a bug. Semantic color (`--stop`, `--warn`, `--ok`) is scarce on purpose
+— see `GuardrailTable.tsx`'s hierarchy (passed rows recede, the deciding guardrail
+dominates) for the reasoning. Stages 3–5 inherit this file; extend it, don't duplicate
+it.
+
 ## Standing rule
 
 No number reaches a screen except through a committed artifact under `public/data/`,

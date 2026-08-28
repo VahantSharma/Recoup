@@ -1,0 +1,122 @@
+.gr-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.gr-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-2);
+}
+
+.gr-index {
+  color: var(--text-faint);
+  font-size: var(--t-xs-size);
+  font-family: var(--font-mono);
+  width: 1.5em;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* --- approved summary (no row fired) --- */
+
+.gr-row-approved {
+  height: 40px;
+  color: var(--ok);
+  background: var(--ok-tint);
+  border-left: 2px solid var(--ok);
+  border-radius: var(--radius-badge);
+  font-size: var(--t-sm-size);
+  margin-bottom: var(--sp-2);
+  padding-left: var(--sp-3);
+}
+
+.gr-row-approved .gr-check {
+  color: var(--ok);
+}
+
+/* --- passed: context, not content --- */
+
+.gr-row-passed {
+  height: 28px;
+  color: var(--text-faint);
+  font-size: var(--t-sm-size);
+}
+
+.gr-row-passed .gr-check {
+  color: var(--text-faint);
+  font-size: var(--t-xs-size);
+  width: 1em;
+}
+
+.gr-row-passed .gr-name {
+  color: var(--text-faint);
+}
+
+/* --- the deciding row: dominant --- */
+
+.gr-row-fired {
+  min-height: 44px;
+  border-radius: var(--radius-badge);
+  margin: var(--sp-1) 0;
+  padding-top: var(--sp-2);
+  padding-bottom: var(--sp-2);
+}
+
+.gr-tone-stop {
+  background: var(--stop-tint);
+  border-left: 2px solid var(--stop);
+}
+
+.gr-tone-stop .gr-fired-reason {
+  color: var(--stop);
+}
+
+.gr-tone-warn {
+  background: var(--warn-tint);
+  border-left: 2px solid var(--warn);
+}
+
+.gr-tone-warn .gr-fired-reason {
+  color: var(--warn);
+}
+
+.gr-fired-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gr-fired-name {
+  font-size: var(--t-md-size);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.gr-fired-reason {
+  font-size: var(--t-sm-size);
+  font-weight: 500;
+}
+
+/* --- not evaluated: short-circuited --- */
+
+.gr-row-skipped {
+  height: 28px;
+  color: var(--text-faint);
+  opacity: 0.6;
+  font-size: var(--t-sm-size);
+  font-style: italic;
+}
+
+.gr-row-skipped .gr-name {
+  flex-shrink: 0;
+}
+
+.gr-skipped-note {
+  color: var(--text-faint);
+  font-size: var(--t-xs-size);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

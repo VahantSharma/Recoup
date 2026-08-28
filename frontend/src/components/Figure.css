@@ -1,0 +1,106 @@
+.figure {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.figure-value {
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-md-size);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  text-decoration: underline dotted var(--text-faint);
+  text-underline-offset: 3px;
+  transition: color 120ms, text-decoration-color 120ms;
+}
+
+.figure-value:hover,
+.figure-value:focus-visible {
+  color: var(--accent);
+  text-decoration-style: solid;
+  text-decoration-color: var(--accent);
+}
+
+.figure-value-mono {
+  font-family: var(--font-mono);
+  font-size: var(--t-sm-size);
+}
+
+/* A Figure rendered as a badge pill (e.g. decline_class_source) -- still clickable,
+   provenance included, .badge-<tone> (Badge.css) supplies the color/tint. */
+.figure-value-badge {
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 120ms;
+}
+
+.figure-value-badge:hover,
+.figure-value-badge:focus-visible {
+  filter: brightness(1.25);
+  color: inherit;
+}
+
+.figure-label {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.figure-popover {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  margin-top: var(--sp-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--sp-3) var(--sp-4);
+  min-width: 320px;
+  max-width: 420px;
+  font-size: var(--t-sm-size);
+}
+
+.figure-popover-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.figure-popover-key {
+  color: var(--text-dim);
+}
+
+.figure-popover-val {
+  text-align: right;
+  word-break: break-all;
+}
+
+.figure-mono {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs-size);
+}
+
+.figure-popover-details {
+  margin-top: var(--sp-2);
+}
+
+.figure-popover-details summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.figure-popover-details pre {
+  font-size: var(--t-xs-size);
+  overflow-x: auto;
+  background: var(--bg);
+  padding: var(--sp-2);
+  border-radius: var(--radius-badge);
+}

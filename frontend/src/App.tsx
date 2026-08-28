@@ -1,4 +1,3 @@
-import "./App.css";
 import { CaseAuditScreen } from "./components/CaseAuditScreen";
 
 // Flat and obvious, per docs/day5surfaceplan.md: this is a demonstration instrument

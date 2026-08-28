@@ -1,0 +1,119 @@
+.screen {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--sp-8) var(--sp-6) var(--sp-12);
+}
+
+.screen-loading {
+  color: var(--text-dim);
+}
+
+.screen-header h1 {
+  font-size: var(--t-xl-size);
+  font-weight: var(--t-xl-weight);
+  margin: 0;
+}
+
+.screen-subtitle {
+  color: var(--text-dim);
+  margin: var(--sp-2) 0 0;
+  max-width: 70ch;
+}
+
+.load-error {
+  white-space: pre-wrap;
+  background: var(--stop-tint);
+  border: 1px solid var(--stop);
+  padding: var(--sp-4);
+  border-radius: var(--radius-card);
+  color: var(--stop);
+}
+
+/* --- provenance strip --- */
+
+.provenance-strip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--sp-2) var(--sp-4);
+  margin-top: var(--sp-8);
+  font-size: var(--t-sm-size);
+  color: var(--text-dim);
+}
+
+.provenance-strip-sha {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+/* --- two-column layout --- */
+
+.screen-layout {
+  display: flex;
+  gap: var(--sp-8);
+  margin-top: var(--sp-6);
+  align-items: flex-start;
+}
+
+.trace {
+  flex: 1;
+  min-width: 0;
+}
+
+.crafted-banner {
+  background: var(--warn-tint);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-card);
+  margin-bottom: var(--sp-6);
+  font-size: var(--t-sm-size);
+}
+
+@media (max-width: 900px) {
+  .screen-layout {
+    flex-direction: column;
+  }
+}
+
+/* --- step content primitives, shared across all five steps --- */
+
+.kv-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
+}
+
+.kv-row + .kv-row {
+  border-top: 1px solid var(--border);
+}
+
+.kv-label {
+  font-size: var(--t-xs-size);
+  font-weight: var(--t-xs-weight);
+  letter-spacing: var(--t-xs-tracking);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  width: 11rem;
+  flex-shrink: 0;
+}
+
+.step-note {
+  font-size: var(--t-sm-size);
+  color: var(--text-dim);
+  margin: var(--sp-2) 0 0;
+  line-height: 1.6;
+}
+
+.idempotency-value {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.step-note-inline {
+  font-size: var(--t-sm-size);
+  color: var(--text-faint);
+  font-style: italic;
+}

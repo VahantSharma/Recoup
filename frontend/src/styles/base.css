@@ -1,0 +1,25 @@
+/* Minimal global reset. All real styling lives in each component's own stylesheet,
+   built from styles/tokens.css. */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: var(--t-sm-size) / 1.5 var(--font-sans);
+}
+
+#root {
+  min-height: 100svh;
+}
+
+button {
+  font-family: inherit;
+}
