@@ -2,13 +2,42 @@
 
 An AI agent that recovers revenue from failed Razorpay payments — bounded, audited, honestly measured. Built for Razorpay's AI Buildathon (Revenue Recovery track).
 
-**Status:** Day 4 of the 5-day plan in [`docs/buildathon-plan.md`](docs/buildathon-plan.md). This README will get its final Day-5 pass (leading with the problem and the numbers, no build-log framing) before submission.
+**Status:** Day 5 (Stage 1–2) of the 5-day plan in [`docs/buildathon-plan.md`](docs/buildathon-plan.md). Days 1–4's engine (policy gate, paired ablation harness, model bake-off) is complete and reported in [`docs/results.md`](docs/results.md). Day 5 adds the part that was still missing: a screen a reviewer can actually look at, and one endpoint they can actually click, rather than trusting a README's account of a `pytest` run. See **"See it, not just read about it"** below.
 
 **Day 4's story is not "the model arm."** It's this: we built a deterministic upper bound on how much a scarce shared resource (the rolling-30-day per-card attempt budget) constrains recovery, decomposed that bound into what our policy misses using information it *already has* versus what no policy could ever know, and evaluated the model layer — two providers, twenty calls each, a pre-registered abstention rule applied mechanically — against that measured ceiling instead of in a vacuum. Full account, real numbers, in [`docs/results.md`](docs/results.md)'s Day 4 section.
 
 ## What it does
 
 Works failed-payment cases: classifies the failure, proposes a bounded recovery action, passes it through a deterministic policy gate, executes only what is permitted, and measures its own effect against a control group. Headline metric is incremental lift over doing nothing — never gross recovery.
+
+## See it, not just read about it
+
+The case audit screen answers the first question any payments engineer asks — "walk me
+through one case" — for a real failed payment, end to end: the failure reason, how it
+was classified (and whose classification that is), every guardrail's real verdict in
+the order they're actually checked, the action taken or refused, the idempotency key,
+and how it ended. Every figure on it traces to a committed, git-SHA-stamped run
+manifest — click one to see exactly which run produced it, and open the raw JSON
+directly.
+
+One case on that screen is real, not simulated: `pay_TSv8WoMc4OAEGG`, driven through
+Razorpay's actual test-mode checkout on 2026-08-22. Selecting it surfaces a live panel
+that calls a real server, which reconciles against Razorpay's real test-mode API right
+now — not a replay of a stored result — then either creates a real test-mode Payment
+Link or refuses, live, in front of you. Replaying the same attempt proves the
+idempotency key makes the second call a no-op, not a second charge; a checkbox lets you
+force the "already resolved elsewhere" branch live too, since the real payment stays
+`failed` forever in test mode and could otherwise never be observed refusing.
+
+To run it:
+
+```
+cd backend && uvicorn app.main:app --reload      # terminal 1 — the one live endpoint
+cd frontend && npm install && npm run dev        # terminal 2 — the screen itself
+```
+
+Open the URL `npm run dev` prints (default `http://localhost:5173`). Full detail —
+architecture, the design system, what's still open — in [`frontend/README.md`](frontend/README.md).
 
 ## What's real vs. simulated
 
@@ -39,8 +68,10 @@ One line on provider terms, since the evidence chain above depends on it: Gemini
 
 ## Running it
 
-See `CLAUDE.md` for the target commands (backend, frontend, tests, data generation) — kept current as the real scripts land.
+The frontend + live endpoint commands are above ("See it, not just read about it").
+For everything else — tests, the DB rebuild command, data generation, the export
+scripts — see `CLAUDE.md`'s command list, kept current as the real scripts land.
 
 ## License
 
-MIT (or update as needed).
+MIT — see [`LICENSE`](LICENSE).

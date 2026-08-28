@@ -3,14 +3,19 @@
 Full interactive version, including the ten review findings and the corrected architecture diagram:
 https://claude.ai/code/artifact/da31f555-e263-4047-9958-ea2e9f7e2f25
 
-## Status: Day 2 of 5 complete
+## Status: Day 5 (Stage 1–2 of `docs/day5surfaceplan.md`) in progress
 
-A real payment traces end-to-end from a live Razorpay payment id through to a case
-row (Day 1), and a deterministic policy gate with 8 guardrails runs against a
-resampled corpus, every non-harvested parameter sourced or explicitly flagged
-unsourced in [`docs/assumptions.md`](assumptions.md) (Day 2). See that file for the
-full parameter register, including a caught and corrected fabricated citation — kept
-in as a worked example of the discipline, not scrubbed out.
+Days 1–4 are complete: a real payment traces end-to-end from a live Razorpay payment id
+through to a case row (Day 1); a deterministic policy gate with 8 guardrails runs
+against a resampled corpus, every non-harvested parameter sourced or explicitly flagged
+in [`docs/assumptions.md`](assumptions.md) (Day 2); the paired-comparison harness under
+common random numbers, lift with confidence intervals, and the full sensitivity sweep
+are built and reported in [`docs/results.md`](results.md) (Day 3); the model layer's
+grid search, pre-registered abstention, and real two-provider bake-off ran and both
+abstained, reported in the same file (Day 4). Day 5's export layer, case audit screen,
+and one live Razorpay verification endpoint are built and committed — see
+[`docs/day5surfaceplan.md`](day5surfaceplan.md) for what's shipped versus what's still
+open (the ablation table + sliders, the portfolio view, `architecture.md`).
 
 ## Buildathon facts (verified)
 
@@ -51,9 +56,9 @@ Ordered so **every day ends with something submittable** — the rules-only prod
 
 1. ✅ **Real corpus + durable state.** Case state machine, seeded stratified arm assignment, one real payment traced end-to-end. Corpus turned out unharvestable reason-by-reason — see above.
 2. ✅ **Compliance-aware policy engine.** `docs/assumptions.md` (every parameter sourced or flagged), `corpus_builder.py`, the unknown-decline path (routes to human review, never silent auto-retry), run provenance, and the gate itself — 8 guardrails: stale-reconcile, unknown-decline, hard-decline, risk-hard-stop, already-resolved, amount ceiling, network attempt budget, break-even floor. *Ships a defensible rules-only product.*
-3. **Simulator + eval harness.** `app/simulator/` (ground truth, structurally unreadable by policy code), the paired-comparison harness, lift with confidence intervals, the sensitivity sweep, compliance-violation counter. *Ships the ablation table — the artifact that wins the track.*
-4. **The model layer, re-scoped.** Narration reconciliation on real published formats, or playbook synthesis + abstention over real run data — not synthesized messy text. Cost-per-decision instrumentation, prompt-injection test.
-5. **Surface + packaging.** Dashboard (ablation table, lift, audit trail with provenance column, unit economics, assumption sliders letting a judge move the simulator's parameters and watch the ranking hold), guardrails as read-only config, architecture.md (the evidence chain: verified-live → Razorpay-published → Recoup's-own-work → assumption → ablation result → sensitivity sweep), README leading with the finding and the limitations, pitch video opening on the sliders.
+3. ✅ **Simulator + eval harness.** `app/simulator/` (ground truth, structurally unreadable by policy code), the paired-comparison harness under common random numbers, lift with confidence intervals, the full OAT + joint sensitivity sweep, compliance-violation counter. Reported in `docs/results.md`.
+4. ✅ **The model layer, re-scoped.** Deterministic grid search, a pre-registered abstention rule, and a real 20-call bake-off across two providers — both abstained, mechanically, under the rule committed before either ran. Reported in `docs/results.md`.
+5. 🔶 **Surface + packaging, in progress.** `docs/day5surfaceplan.md`'s Stage 1 (export layer) and Stage 2 (case audit screen + the one live Razorpay verification endpoint) are built and committed. Still open: the ablation table + assumption sliders (Stage 3), the portfolio view (Stage 4), the model-layer panel (Stage 5), `architecture.md` (Stage 6), the pitch video.
 6. **(buffer) Adversarial pass.** Fresh seeds, kill-mid-action restart test, expired key / empty batch / malformed row.
 7. **(buffer) Rehearsal.** Timed pitch, rehearse the panel probes, submit early.
 
@@ -62,4 +67,4 @@ Ordered so **every day ends with something submittable** — the rules-only prod
 - ~~Re-verify current Visa/Mastercard attempt caps and penalty figures~~ — done (Day 2): Visa 15/30 days confirmed by direct fetch; Mastercard 15/30 days confirmed on one secondary source only (not Mastercard's own publication), still treated as directional. Internal cap set to 6/30 days regardless — deliberate headroom, not a citation of anyone's actual limit.
 - Confirm whether the repo/video/architecture doc attach at application time or only after shortlisting.
 - No Alembic migration tooling yet — schema changes require regenerating the dev DB. Fine for now; revisit if it starts costing real time.
-- Day 3's harness needs to actually implement the paired-comparison design and the sensitivity sweep described above — decided, not yet built.
+- ~~Day 3's harness needs to actually implement the paired-comparison design and the sensitivity sweep described above~~ — done (Day 3); see `docs/results.md`.
