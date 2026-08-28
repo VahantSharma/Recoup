@@ -41,11 +41,28 @@ npm run lint      # oxlint + the import-boundary check
 npm run build     # tsc -b && vite build
 ```
 
+## The one live path
+
+The case audit screen's "Verify this, live" panel (scoped to the real harvested
+payment) calls `backend/app/main.py` directly from the browser — start it separately:
+
+```
+cd ../backend && uvicorn app.main:app --reload
+```
+
+It defaults to `http://127.0.0.1:8000`; override with `VITE_LIVE_API_BASE_URL` if
+you're running the backend elsewhere. `app.main` only allows CORS from the common
+local Vite dev/preview ports (5173–5176, 4173) — if `npm run dev` picks a different
+port, either free one of those first or add yours to `app/main.py`'s allowlist. If the
+panel can't reach the backend it says so explicitly, with the command to start it —
+never a silent failure.
+
 ## Screens
 
 - **Case audit** (`src/components/CaseAuditScreen.tsx`) — Stage 2. One failed payment,
   end to end: failure reason + provenance, classification, every guardrail's real
-  verdict in checked order, the proposed action, the idempotency key, the outcome.
+  verdict in checked order, the proposed action, the idempotency key, the outcome, and
+  the one live panel above.
 
 Later stages (ablation table + sliders, portfolio view, model layer panel) get their own
 components here as their own artifacts land — see `docs/day5surfaceplan.md`.
