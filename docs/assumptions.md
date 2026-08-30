@@ -231,6 +231,30 @@ Used by: `corpus_builder.build_corpus()` — injects a synthetic reason string a
   through to the `UNKNOWN`/`'unknown'` branch. Never applied to the one real
   harvested row.
 
+### opt_out_rate_bps
+Value: range [0, 500] bps (0–5%), default 100 bps (1%)
+Source: **NO PUBLIC SOURCE FOUND.** Added during an adversarial pass after a
+  claim-vs-code audit found CLAUDE.md's do-not-disturb guardrail ("opted-out
+  customers... excluded before the agent sees them") had no implementation anywhere
+  — `state_machine.py`'s `EXCLUDED` terminal state and `PaymentCase.excluded_reason`
+  existed but nothing ever set them. Same class of gap `risk_flag_rate_bps` and
+  `unknown_reason_rate_bps` closed for their own guardrails, for the same reason:
+  without an independent draw, the exclusion path would be unit-tested but never
+  actually exercised by any generated corpus. No published rate exists for what share
+  of failed-payment customers have opted out of retry contact specifically — nor
+  could there be, from a public source; this is an internal consent-record fact any
+  real deployment would read from its own customer-preference store, not something
+  to look up. The range is a deliberately small, swept placeholder, not a claim about
+  real opt-out incidence.
+Used by: `corpus_builder.build_corpus()` — `opt_out`, drawn independently of decline
+  reason (a customer's contact preference has nothing to do with why their card
+  happened to decline this time, same reasoning as `risk_flag_rate_bps`). Never
+  applied to the one real harvested row. Consumed by `app.harness.run` (excludes the
+  case before any policy's `propose()` is ever called, for every arm alike) and by
+  `app.intake.apply_do_not_disturb` (the DB-model/state-machine path, for a real
+  intake pipeline — transitions `CLASSIFIED` straight to `EXCLUDED` instead of
+  `ELIGIBLE`).
+
 `card_reuse_factor` itself now lives in the HEADLINE RISK section above, promoted
 after the Day 3 checkpoint run showed it was quietly determining `rules_only`'s
 recovery performance via card-budget saturation, not just enabling a guardrail test —

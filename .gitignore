@@ -34,5 +34,7 @@ backend/data/model_cache/
 .vscode/*
 !.vscode/extensions.json
 
-# playwright MCP debug snapshots (page-*.yml / console-*.log from browser-driven work)
-.playwright-mcp/
+# local Claude Code settings -- per-machine (which MCP servers are enabled locally),
+# not project config; a committed copy of this reads as carelessness, not intent.
+# .claude/commands/ (the project's own slash commands) stays tracked.
+.claude/settings.local.json
