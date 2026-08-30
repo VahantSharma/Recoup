@@ -37,7 +37,7 @@ of the gate's eight guardrails reject with `route_to=None` (`hard_decline_stop`,
 no legal terminal state to land in at all. Added `REFUSED`, kept structurally distinct
 from `NOT_WORKED` (the gate's own deliberate economic non-action) — the same
 distinction the frontend's "policy" vs "stop" tone already enforces on screen (see the
-reviewer-credibility pass, commit `051e925`). And `PROPOSED`/`GATE_APPROVED` gained a
+reviewer-credibility pass, commit `fafc454`). And `PROPOSED`/`GATE_APPROVED` gained a
 legal re-entry back to `RECONCILING`, specifically for the crash-resume path: a process
 that dies after building a proposal or after gate approval, but before a
 `case_attempts` row is ever committed, can safely restart the decision fresh, since
@@ -136,7 +136,7 @@ what changed and why, not just discover a different number with no trail to it.
 
 ```
 NEW manifest (this section, below):
-git_sha       = 051e925f61733859972464062d4a62ea89753d9a
+git_sha       = fafc454719ed796b3f0ea2d61f25d72d6a4d4f9c
 corpus_hash   = 9551c3ed0f309e69d3112eceb05492ca5fe0ac0b8fd9188e0fe1fe20ec859bea
 n             = 1201, master_seed = 42
 
@@ -169,7 +169,7 @@ verification** until this note is removed.
 to the manifest below, it doesn't belong in this section.**
 
 ```
-git_sha       = 051e925f61733859972464062d4a62ea89753d9a
+git_sha       = fafc454719ed796b3f0ea2d61f25d72d6a4d4f9c
 corpus_hash   = 9551c3ed0f309e69d3112eceb05492ca5fe0ac0b8fd9188e0fe1fe20ec859bea
 ```
 

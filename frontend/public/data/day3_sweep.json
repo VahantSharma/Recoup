@@ -2,7 +2,7 @@
   "schema_name": "day3_sweep",
   "schema_version": "1.0.0",
   "manifest": {
-    "git_sha": "051e925f61733859972464062d4a62ea89753d9a",
+    "git_sha": "fafc454719ed796b3f0ea2d61f25d72d6a4d4f9c",
     "script": "scripts/run_day3_sweep.py",
     "schema_name": "day3_sweep",
     "schema_version": "1.0.0",
