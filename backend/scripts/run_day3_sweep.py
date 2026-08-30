@@ -11,6 +11,8 @@ import statistics
 from collections import defaultdict
 
 from app import manifest
+from app.export import build_manifest, write_artifact
+from app.export_schemas import Day3SweepArtifact, JointSweepSummary, OATParameterSweep, OATPoint
 from app.harness.sweep import PARAM_SPECS, joint_random_sweep, oat_sweep
 
 BASE_SEED = 42
@@ -138,6 +140,52 @@ def main() -> None:
               f"(blind retry rational under Visa's schedule alone): {below_visa:.1%}")
         print(f"  fraction with break-even < Mastercard's {_rupees(MASTERCARD_LOW_PAISE)} (month-1 rate): {below_mc_low:.1%}")
         print(f"  fraction with break-even < Mastercard's {_rupees(MASTERCARD_HIGH_PAISE)} (later-month rate): {below_mc_high:.1%}")
+
+    # --- Stage 3 export: the OAT grid, exactly the 75 real computed points, no field
+    # invented for the frontend -- THE ONE RULE a slider built on this artifact must
+    # honor: snap to one of `points`, never interpolate between them. ---
+    parameter_sweeps: list[OATParameterSweep] = []
+    for name, spec in PARAM_SPECS.items():
+        rows = by_param[name]
+        points = [
+            OATPoint(
+                value=r["value"], rate_control=r["rate_control"], rate_rules_only=r["rate_rules_only"],
+                rate_blind_retry=r["rate_blind_retry"],
+                rate_lift_rules_vs_control=r["rate_lift_rules_vs_control"], rules_beats_control=r["rules_beats_control"],
+                rate_lift_blind_vs_rules=r["rate_lift_blind_vs_rules"], blind_beats_rules=r["blind_beats_rules"],
+                break_even_penalty_paise=r["break_even_penalty_paise"],
+            )
+            for r in rows
+        ]
+        parameter_sweeps.append(OATParameterSweep(
+            name=name, lo=spec["lo"], hi=spec["hi"], default=spec["default"],
+            points=points, lift_spread=spreads[name],
+        ))
+    most_consequential = [name for name, _ in sorted(spreads.items(), key=lambda kv: -kv[1])]
+
+    joint_summary = JointSweepSummary(
+        n_draws=JOINT_N_DRAWS, n_cases_per_draw=JOINT_N_CASES, rules_beats_control_count=holds,
+        n_draws_with_break_even=len(be_values),
+        break_even_p5_paise=_percentile(be_values, 5) if be_values else 0.0,
+        break_even_p50_paise=_percentile(be_values, 50) if be_values else 0.0,
+        break_even_p95_paise=_percentile(be_values, 95) if be_values else 0.0,
+        fraction_below_visa=(sum(1 for v in be_values if v < VISA_PENALTY_PAISE) / len(be_values)) if be_values else 0.0,
+        fraction_below_mastercard_low=(sum(1 for v in be_values if v < MASTERCARD_LOW_PAISE) / len(be_values)) if be_values else 0.0,
+        fraction_below_mastercard_high=(sum(1 for v in be_values if v < MASTERCARD_HIGH_PAISE) / len(be_values)) if be_values else 0.0,
+        visa_penalty_paise=VISA_PENALTY_PAISE, mastercard_low_paise=MASTERCARD_LOW_PAISE,
+        mastercard_high_paise=MASTERCARD_HIGH_PAISE,
+    )
+    artifact = Day3SweepArtifact(
+        oat_n=OAT_N, base_seed=BASE_SEED, parameters=parameter_sweeps,
+        most_consequential=most_consequential, joint=joint_summary,
+    )
+    export_manifest = build_manifest(
+        script="scripts/run_day3_sweep.py", schema_name=Day3SweepArtifact.SCHEMA_NAME,
+        schema_version=Day3SweepArtifact.SCHEMA_VERSION, seed=BASE_SEED, corpus_hash=None,
+        policy_params={}, simulator_params={"PARAM_SPECS": PARAM_SPECS}, use_common_random_numbers=True,
+    )
+    out_path = write_artifact(Day3SweepArtifact.SCHEMA_NAME, Day3SweepArtifact.SCHEMA_VERSION, export_manifest, artifact)
+    print(f"\nwrote {out_path}")
 
 
 if __name__ == "__main__":

@@ -156,6 +156,36 @@ def test_harvested_row_reason_is_never_touched_by_the_unknown_draw():
     assert harvested.decline_class != UNKNOWN
 
 
+def test_opt_out_is_injected_at_default_rate():
+    """Without this draw, opt_out is always False and app.harness.run's do-not-disturb
+    exclusion would be unit-tested but never actually exercised by any generated
+    corpus -- the same class of gap risk_flag_rate_bps and unknown_reason_rate_bps
+    close for their own guardrails."""
+    drafts = build_corpus(n=3000, seed=42, batch_simulated_start_at=_start())
+    opted_out = [d for d in drafts if d.opt_out]
+    assert len(opted_out) > 0, "the do-not-disturb exclusion needs an opted-out case to ever fire"
+
+
+def test_opt_out_rate_is_swept_correctly():
+    n = 3000
+    off = build_corpus(n=n, seed=42, batch_simulated_start_at=_start(), opt_out_rate_bps=0)
+    assert sum(1 for d in off if d.opt_out) == 0
+
+    high = build_corpus(n=n, seed=42, batch_simulated_start_at=_start(), opt_out_rate_bps=2000)
+    high_share = sum(1 for d in high if d.opt_out) / n
+    assert 0.15 < high_share < 0.25, f"20% opt_out_rate_bps should flag roughly a fifth of cases, got {high_share:.1%}"
+
+
+def test_harvested_row_is_never_opted_out_by_the_independent_draw():
+    """The one real harvested case is a specific observed fact -- see the module
+    docstring. There is no real opt-out signal for it; forcing a synthetic opt_out
+    draw onto real data would be exactly the harvested/documented conflation
+    docs/ENGINEERING-DOCTRINE.md forbids, at any opt_out_rate_bps."""
+    drafts = build_corpus(n=10, seed=42, batch_simulated_start_at=_start(), opt_out_rate_bps=10_000)
+    harvested = [d for d in drafts if d.decline_class_source == "harvested"][0]
+    assert harvested.opt_out is False
+
+
 def test_ceiling_concentrates_value_far_more_than_count():
     """The named finding in docs/assumptions.md, proven directly: at default sigma,
     ~6.4% of cases by count clear the ceiling but represent well over a third of

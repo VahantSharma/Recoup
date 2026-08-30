@@ -75,11 +75,43 @@ def test_rejects_risk_flagged_case_to_needs_review():
     assert result == GateResult("rejected", "risk_hard_stop", "NEEDS_REVIEW")
 
 
-# --- 5. reconcile-before-act's actual enforcement ---
+# --- 5. reconcile-before-act's actual enforcement (default-deny: only 'failed' is
+# actionable, so this guardrail also covers every status the gate doesn't affirmatively
+# recognize -- see gate.py's own docstring on _ACTIONABLE_RECONCILED_STATUSES for the
+# adversarial-pass finding that made this default-deny instead of an allowlist of the
+# one known-resolved status) ---
 
 def test_rejects_a_case_already_resolved_per_fresh_reconcile():
     result = _evaluate(_case(), reconciled_status="captured")
-    assert result == GateResult("rejected", "already_resolved", None)
+    assert result == GateResult("rejected", "already_resolved", "NEEDS_REVIEW", observed_status="captured")
+
+
+def test_rejects_an_unrecognized_reconciled_status_default_deny():
+    """The actual adversarial-pass finding: a status the gate has never seen before
+    (a typo, a future Razorpay status, garbage) must refuse and route to a human --
+    never silently fall through toward approval because it isn't the one status this
+    gate specifically knows means 'already resolved.'"""
+    result = _evaluate(_case(), reconciled_status="totally_made_up_status_xyz")
+    assert result == GateResult(
+        "rejected", "already_resolved", "NEEDS_REVIEW", observed_status="totally_made_up_status_xyz",
+    )
+
+
+@pytest.mark.parametrize("status", ["authorized", "refunded", "created", ""])
+def test_rejects_every_non_failed_status_the_gate_has_ever_been_told_about(status):
+    """Same default-deny property, exercised against every real Razorpay payment
+    status this project's own docs name (created, authorized, captured, refunded,
+    failed) plus an empty string -- 'failed' is the only one that ever passes."""
+    result = _evaluate(_case(), reconciled_status=status)
+    assert result.decision == "rejected"
+    assert result.reason == "already_resolved"
+    assert result.route_to == "NEEDS_REVIEW"
+    assert result.observed_status == status
+
+
+def test_accepts_the_one_actionable_status():
+    result = _evaluate(_case(), reconciled_status="failed")
+    assert result.reason != "already_resolved"
 
 
 # --- 6. amount ceiling ---

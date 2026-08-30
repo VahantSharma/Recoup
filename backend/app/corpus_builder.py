@@ -1,4 +1,4 @@
-"""Resamples Razorpay's 16 documented reason strings into the real envelope shape
+"""Resamples Razorpay's 17 documented reason strings into the real envelope shape
 confirmed live on Day 1, against distributions from docs/assumptions.md — every
 parameter here is a row there first. The one real harvested failure is concatenated in
 untouched, never resampled or overwritten.
@@ -40,6 +40,10 @@ class CaseDraft:
     decline_class_source: str
     risk_flagged: bool
     simulated_at: datetime
+    opt_out: bool = False  # do-not-disturb -- see build_corpus's opt_out_rate_bps.
+        # Defaulted so every existing call site (tests included) that constructs a
+        # CaseDraft without naming this field keeps working unchanged; every row this
+        # module itself produces sets it explicitly, below.
 
 
 def _load_harvested_failures() -> list[dict]:
@@ -81,6 +85,7 @@ def build_corpus(
     card_reuse_factor: float = 4.0,  # docs/assumptions.md: card_reuse_factor
     risk_flag_rate_bps: int = 150,  # docs/assumptions.md: risk_flag_rate_bps
     unknown_reason_rate_bps: int = 50,  # docs/assumptions.md: unknown_reason_rate_bps
+    opt_out_rate_bps: int = 100,  # docs/assumptions.md: opt_out_rate_bps -- NO PUBLIC SOURCE FOUND
 ) -> list[CaseDraft]:
     rng = random.Random(seed)
 
@@ -122,6 +127,16 @@ def build_corpus(
         # actually exercised by any generated corpus.
         risk_flagged = info.risk_flagged or (rng.random() < risk_flag_rate_bps / 10_000)
 
+        # Do-not-disturb -- independent of decline reason, same pattern as
+        # risk_flagged above: a real customer's opt-out status has nothing to do with
+        # why their card happened to decline. Drawn here, not left as an always-False
+        # placeholder, for the same reason unknown_reason_rate_bps and
+        # risk_flag_rate_bps are drawn instead of asserted zero -- without an
+        # independent draw the "excluded before the agent ever sees it" path would be
+        # unit-tested but never actually exercised by any generated corpus (see
+        # app.harness.run's opt_out check and docs/assumptions.md's own entry).
+        opt_out = rng.random() < opt_out_rate_bps / 10_000
+
         # Log-normal ticket size, floored at ₹1 (100 paise) — a payment of literally
         # zero or negative paise isn't a real case.
         amount = max(100, round(math.exp(rng.gauss(math.log(ticket_size_median_paise), ticket_size_sigma))))
@@ -150,6 +165,7 @@ def build_corpus(
             decline_class_source=info.source,
             risk_flagged=risk_flagged,
             simulated_at=simulated_at,
+            opt_out=opt_out,
         ))
 
     for p in _load_harvested_failures():
@@ -169,6 +185,10 @@ def build_corpus(
             decline_class_source=info.source,
             risk_flagged=info.risk_flagged,
             simulated_at=batch_simulated_start_at,
+            # opt_out=False, unset: this is the one real harvested case (real
+            # payment, real checkout) -- no real opt-out signal was ever observed for
+            # it, and forcing a synthetic opt-out draw onto real data would be
+            # exactly the harvested/documented conflation docs/ENGINEERING-DOCTRINE.md forbids.
         ))
 
     return drafts

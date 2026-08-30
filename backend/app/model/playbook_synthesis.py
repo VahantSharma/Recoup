@@ -2,7 +2,7 @@
 no raw narration, no synthesized customer text, no invented numbers. Every figure in
 the prompt is computed fresh here from an actual run over PROPOSAL_SEED's corpus, the
 same corpus app.model.grid_search and app.harness.observable_optimal fit against --
-never hand-typed from memory, per CLAUDE.md's "never fabricate a metric" rule.
+never hand-typed from memory, per docs/ENGINEERING-DOCTRINE.md's "never fabricate a metric" rule.
 
 Shared by both scripts/run_day4_bakeoff.py (20 calls/provider, measuring dispersion)
 and scripts/synthesize_playbook.py (the one official call per provider) -- same

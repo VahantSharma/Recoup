@@ -4,7 +4,7 @@ docs/assumptions.md.
 Never import anything from `app.simulator` here, or anywhere else under `app/` outside
 `app/simulator/` itself — that's the ground truth the simulator uses to decide real
 outcomes, and the policy reading it (even indirectly, via a shared config) would be
-the exact circularity CLAUDE.md is built to avoid. Enforced structurally by
+the exact circularity docs/ENGINEERING-DOCTRINE.md is built to avoid. Enforced structurally by
 `tests/test_import_boundary.py`, not just this docstring.
 """
 from __future__ import annotations

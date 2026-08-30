@@ -1,5 +1,5 @@
 """scripts/init_db.py -- the single documented command that rebuilds data/recoup.db
-from scratch (CLAUDE.md, README.md's "Running it" -> CLAUDE.md). A judge cloning the
+from scratch (docs/ENGINEERING-DOCTRINE.md, README.md's "Running it" -> docs/ENGINEERING-DOCTRINE.md). A judge cloning the
 repo needs this to actually create every table, and needs it to be safe to run more
 than once."""
 from __future__ import annotations

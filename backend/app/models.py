@@ -60,7 +60,7 @@ class PaymentCase(Base):
     razorpay_payment_id: Mapped[str]
     razorpay_order_id: Mapped[str | None] = mapped_column(default=None)
     # Razorpay's card_xxx token only — no network, no last4. Strict reading of
-    # CLAUDE.md's "No card data — tokenized references only," confirmed with the user.
+    # docs/ENGINEERING-DOCTRINE.md's "No card data — tokenized references only," confirmed with the user.
     card_id: Mapped[str | None] = mapped_column(default=None)
 
     amount: Mapped[int]  # paise
@@ -80,9 +80,14 @@ class PaymentCase(Base):
     # mock bank page turned out not to branch on card number — only two outcomes are
     # actually harvestable (success, and one generic gateway decline) — see
     # recoup-razorpay-error-taxonomy-doc-sourced memory. Keeping this column honest is
-    # a direct instance of CLAUDE.md's "what's real vs. simulated" principle.
+    # a direct instance of docs/ENGINEERING-DOCTRINE.md's "what's real vs. simulated" principle.
     decline_class_source: Mapped[str]
     risk_flagged: Mapped[bool] = mapped_column(default=False)
+    # Do-not-disturb: a customer who opted out of retry contact. Checked and applied
+    # at intake, before this case ever reaches the gate or a policy -- see
+    # app.intake.apply_do_not_disturb, which transitions a case with this set to the
+    # EXCLUDED terminal state (below) rather than ELIGIBLE.
+    opt_out: Mapped[bool] = mapped_column(default=False)
 
     arm: Mapped[str]  # control | blind_retry | rules_only | rules_plus_model
     state: Mapped[str] = mapped_column(default="INTAKE")

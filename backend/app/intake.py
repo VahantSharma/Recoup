@@ -1,4 +1,4 @@
-"""Seeded, stratified arm assignment.
+"""Seeded, stratified arm assignment, and do-not-disturb intake filtering.
 
 Plain `index % 4` risks an unlucky batch skewing e.g. more hard-declines into one arm,
 which would quietly bias the lift comparison the eval harness depends on. Instead:
@@ -10,6 +10,11 @@ from __future__ import annotations
 
 import random
 from collections import defaultdict
+from collections.abc import Callable
+from datetime import datetime
+
+from .models import PaymentCase
+from .state_machine import transition
 
 ARMS: tuple[str, ...] = ("control", "blind_retry", "rules_only", "rules_plus_model")
 
@@ -43,3 +48,27 @@ def assign_arms_stratified(decline_classes: list[str], seed: int) -> list[str]:
 
     assert all(a is not None for a in result)
     return result  # type: ignore[return-value]
+
+
+def apply_do_not_disturb(case: PaymentCase, *, now: Callable[[], datetime]) -> bool:
+    """Do-not-disturb, applied at intake: a case whose customer has opted out of
+    retry contact is excluded before the agent ever sees it -- never reaches ELIGIBLE,
+    is never proposed for, never reaches the gate. This is the intake-time filter
+    docs/ENGINEERING-DOCTRINE.md's do-not-disturb guardrail names, distinct in kind from every guardrail
+    inside app.gate.evaluate(): those all run per-attempt, against a case already in
+    play; this runs once, before the case is ever in play at all.
+
+    Call this instead of transitioning straight to ELIGIBLE, right after CLASSIFIED --
+    see state_machine.LEGAL_TRANSITIONS: {"CLASSIFIED": {"EXCLUDED", "ELIGIBLE"}}. Must
+    be called with `case.state == "CLASSIFIED"` (the same requirement `transition`
+    itself enforces, via IllegalTransition, so a caller applying this out of order
+    fails loudly rather than silently doing nothing).
+
+    Returns True iff the case was excluded (opted out), so a caller can skip the rest
+    of its own eligibility path without duplicating the check on `case.opt_out`.
+    """
+    if not case.opt_out:
+        return False
+    case.excluded_reason = "opted_out"
+    transition(case, "EXCLUDED", now=now)
+    return True

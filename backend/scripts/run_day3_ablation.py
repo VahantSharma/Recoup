@@ -18,6 +18,14 @@ from statistics import NormalDist
 
 from app import manifest
 from app.corpus_builder import build_corpus
+from app.export import build_manifest, write_artifact
+from app.export_schemas import (
+    ArmOutcomeRow,
+    ComplianceEconomics,
+    Day3AblationArtifact,
+    GuardrailReachabilityRow,
+    PairedLiftRow,
+)
 from app.gate import GUARDRAIL_ORDER
 from app.harness.compliance import break_even_penalty_paise, net_value_paise, total_violations
 from app.harness.policies import BlindRetryPolicy, ControlPolicy, RulesOnlyPolicy
@@ -167,6 +175,7 @@ def main() -> None:
     print(f"n={len(corpus)} cases, master_seed={SEED}\n")
 
     print("--- per-arm absolute numbers, THREE-way outcome split (not lift -- read these first) ---")
+    arm_rows: list[ArmOutcomeRow] = []
     for arm, rows in results.items():
         n = len(rows)
         n_recovered = sum(r.recovered for r in rows)
@@ -184,8 +193,16 @@ def main() -> None:
             f"{'':>12}  total_attempts={total_attempts}  total_violations={arm_violations}  "
             f"recovered_amount={_fmt_paise(recovered_amount)}  deferred_amount={_fmt_paise(deferred_amount)}"
         )
+        arm_rows.append(ArmOutcomeRow(
+            arm=arm, recovered_rate=n_recovered / n, deferred_rate=n_deferred / n,
+            not_recovered_rate=n_not_recovered / n, total_attempts=total_attempts,
+            total_violations=arm_violations, recovered_amount_paise=recovered_amount,
+            deferred_amount_paise=deferred_amount,
+            net_value_paise=net_value_paise(rows, COST_PER_CONTACT_ATTEMPT_MILLI_PAISE),
+        ))
 
     print("\n--- paired bootstrap lift (95% CI, 2000 resamples) ---")
+    lift_rows: list[PairedLiftRow] = []
     for arm_a, arm_b in (("rules_only", "control"), ("blind_retry", "control"), ("blind_retry", "rules_only")):
         lift = paired_bootstrap_lift(results[arm_a], results[arm_b], seed=7)
         print(f"\n{arm_a} vs {arm_b} (n={lift.n_cases}):")
@@ -199,6 +216,12 @@ def main() -> None:
             f"(95% CI [{_fmt_paise(lift.amount_lift_ci_low_paise)}, "
             f"{_fmt_paise(lift.amount_lift_ci_high_paise)}])"
         )
+        lift_rows.append(PairedLiftRow(
+            arm_a=arm_a, arm_b=arm_b, n_cases=lift.n_cases, rate_a=lift.rate_a, rate_b=lift.rate_b,
+            rate_lift=lift.rate_lift, rate_lift_ci_low=lift.rate_lift_ci_low, rate_lift_ci_high=lift.rate_lift_ci_high,
+            amount_lift_paise=lift.amount_lift_paise, amount_lift_ci_low_paise=lift.amount_lift_ci_low_paise,
+            amount_lift_ci_high_paise=lift.amount_lift_ci_high_paise,
+        ))
 
     print("\n--- compliance economics: break-even penalty rate (net value, not gross) ---")
     penalty_paise = break_even_penalty_paise(
@@ -214,15 +237,18 @@ def main() -> None:
 
     print("\n--- GUARDRAIL REACHABILITY TABLE, rules_only, every gate.evaluate() call ---")
     total_calls = sum(guardrail_counts.values())
+    guardrail_rows: list[GuardrailReachabilityRow] = []
     for reason in GUARDRAIL_ORDER:
         count = guardrail_counts.get(reason, 0)
         share = count / total_calls if total_calls else 0.0
         if reason == "permitted":
             print(f"  {reason:>36}: {count:>6}  ({share:.2%})  [not a guardrail -- gate approved]")
+            guardrail_rows.append(GuardrailReachabilityRow(name=reason, count=count, share=share, reachable=None, why=""))
             continue
         reachable, why = REACHABILITY[reason]
         verdict = "REACHABLE" if reachable else "NOT reachable"
         print(f"  {reason:>36}: {count:>6}  ({share:.2%})  [{verdict}]")
+        guardrail_rows.append(GuardrailReachabilityRow(name=reason, count=count, share=share, reachable=reachable, why=why))
     print(f"  {'total gate.evaluate() calls':>36}: {total_calls:>6}")
     print()
     for reason in GUARDRAIL_ORDER:
@@ -233,18 +259,58 @@ def main() -> None:
         print()
 
     print("--- deferred-bucket reconciliation (rules_only) ---")
-    # Three disjoint-by-construction sets, matching the gate's own checked order
-    # exactly (unknown before hard before risk before ceiling) -- each should equal
-    # its own guardrail's firing count exactly, three independent cross-checks, not one.
-    unknown_cases = [d for d in corpus if d.decline_class == UNKNOWN]
-    nonhard_nonunknown = [d for d in corpus if d.decline_class not in (HARD, UNKNOWN)]
+    # Four disjoint-by-construction sets, matching the real checked order exactly:
+    # do-not-disturb (at intake, before the gate) first, then unknown before hard
+    # before risk before ceiling (the gate's own order) -- each should equal its own
+    # guardrail's firing count exactly, four independent cross-checks, not one.
+    #
+    # opt_out MUST be excluded from unknown/risk/ceiling below, not just noted
+    # separately -- an opted-out case is excluded at intake and never reaches the gate
+    # at all (app.harness.run's own do-not-disturb check, ahead of ANY proposal), so a
+    # case that happens to ALSO be risk_flagged or over-ceiling never actually fires
+    # risk_hard_stop/amount_ceiling_needs_signoff; counting it in those static-attribute
+    # sets anyway is exactly the kind of "population computed from the corpus, not from
+    # what the gate actually did" gap that surfaced live (an adversarial pass added
+    # do-not-disturb after this reconciliation was first written) as one case in the
+    # union reporting neither 'recovered' nor 'deferred_to_human_review' -- caught by
+    # this script's own consistency check, not silently accepted.
+    opted_out_cases = [d for d in corpus if d.opt_out]
+    not_opted_out = [d for d in corpus if not d.opt_out]
+    unknown_cases = [d for d in not_opted_out if d.decline_class == UNKNOWN]
+    nonhard_nonunknown = [d for d in not_opted_out if d.decline_class not in (HARD, UNKNOWN)]
     risk_diverted = [d for d in nonhard_nonunknown if d.risk_flagged]
     ceiling_diverted = [d for d in nonhard_nonunknown if not d.risk_flagged and d.amount > AMOUNT_CEILING_PAISE]
 
+    opted_out_ids = {d.razorpay_payment_id for d in opted_out_cases}
     unknown_ids = {d.razorpay_payment_id for d in unknown_cases}
     risk_ids = {d.razorpay_payment_id for d in risk_diverted}
     ceiling_ids = {d.razorpay_payment_id for d in ceiling_diverted}
     union_ids = unknown_ids | risk_ids | ceiling_ids
+
+    rules_by_id_early = {r.case_id: r for r in results["rules_only"]}
+    excluded_opted_out_confirmed = sum(
+        1 for cid in opted_out_ids if rules_by_id_early[cid].final_status == "excluded_opted_out"
+    )
+    opted_out_but_recovered_organically = sum(
+        1 for cid in opted_out_ids if rules_by_id_early[cid].recovered_via == "organic"
+    )
+    # NOT required to sum to len(opted_out_ids): do-not-disturb excludes a case from
+    # ever being PROPOSED for, it does not exempt it from the independently-scheduled
+    # ORGANIC event -- a case excluded first and then organically recovered afterward
+    # correctly flips to final_status='recovered' (state.resolve() overwrites
+    # final_status unconditionally on any later recovery, same as every other
+    # give_up() path -- gave_up_gate_rejected, gave_up_lifetime_exceeded,
+    # gave_up_yielded_scarce_budget all do this too). The invariant that DOES always
+    # hold is the sum below.
+    assert excluded_opted_out_confirmed + opted_out_but_recovered_organically == len(opted_out_ids), (
+        "every opted-out case must be either excluded (never proposed for) or "
+        "organically recovered after being excluded -- there is no third path"
+    )
+    print(f"  do-not-disturb: {len(opted_out_ids)} opted-out cases in this corpus -- "
+          f"{excluded_opted_out_confirmed} excluded before any gate call and never recovered, "
+          f"{opted_out_but_recovered_organically} excluded then recovered organically anyway "
+          f"(still counted as recovered, correctly: do-not-disturb suppresses proposals, "
+          f"never the independent organic-resolution measurement)")
 
     rules_by_id = {r.case_id: r for r in results["rules_only"]}
     would_defer_but_recovered_organically = sum(1 for cid in union_ids if rules_by_id[cid].recovered)
@@ -307,6 +373,39 @@ def main() -> None:
     ceiling_value = sum(d.amount for d in ceiling_diverted)
     print(f"\n  ceiling-diverted count share: {len(ceiling_ids)/len(corpus):.2%} of {len(corpus)} cases")
     print(f"  ceiling-diverted value share: {ceiling_value/total_value:.2%} of total corpus Rs value")
+
+    # --- Stage 3 export: the checkpoint ablation, guardrail reachability, and
+    # compliance economics, as one committed artifact -- every field above, carried
+    # through, never recomputed a second way for the frontend's sake. ---
+    penalty_paise = break_even_penalty_paise(
+        results["rules_only"], results["blind_retry"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE,
+    )
+    compliance = ComplianceEconomics(
+        net_value_blind_retry_paise=net_value_paise(results["blind_retry"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE),
+        net_value_rules_only_paise=net_value_paise(results["rules_only"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE),
+        violations_blind_retry=total_violations(results["blind_retry"]),
+        break_even_penalty_paise=penalty_paise,
+        break_even_penalty_usd=(penalty_paise / 100) / USD_TO_INR,
+        usd_to_inr=USD_TO_INR,
+        visa_penalty_paise=0.10 * USD_TO_INR * 100,
+        mastercard_low_paise=1.00 * USD_TO_INR * 100,
+        mastercard_high_paise=2.00 * USD_TO_INR * 100,
+    )
+    artifact = Day3AblationArtifact(
+        n=len(corpus), master_seed=SEED, arms=arm_rows, lifts=lift_rows,
+        guardrail_reachability=guardrail_rows, compliance=compliance,
+    )
+    export_manifest = build_manifest(
+        script="scripts/run_day3_ablation.py", schema_name=Day3AblationArtifact.SCHEMA_NAME,
+        schema_version=Day3AblationArtifact.SCHEMA_VERSION, seed=SEED,
+        corpus_hash=manifest.corpus_hash(corpus),
+        policy_params=params["policy_params"], simulator_params=params["simulator_params"],
+        use_common_random_numbers=True,
+    )
+    out_path = write_artifact(
+        Day3AblationArtifact.SCHEMA_NAME, Day3AblationArtifact.SCHEMA_VERSION, export_manifest, artifact,
+    )
+    print(f"\nwrote {out_path}")
 
 
 if __name__ == "__main__":

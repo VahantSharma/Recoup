@@ -63,7 +63,10 @@ def test_no_case_exceeds_the_declared_horizon_at_swept_extremes():
 def test_every_case_reaches_a_real_terminal_status_not_left_in_progress():
     corpus = build_corpus(n=500, seed=42, batch_simulated_start_at=_start())
     results = run_ablation(corpus, [ControlPolicy(), RulesOnlyPolicy()], master_seed=42)
-    valid_statuses = {"recovered", "not_recovered", "gave_up_gate_rejected", "gave_up_lifetime_exceeded"}
+    valid_statuses = {
+        "recovered", "not_recovered", "gave_up_gate_rejected", "gave_up_lifetime_exceeded",
+        "excluded_opted_out",  # do-not-disturb -- injected by build_corpus() at its default rate now
+    }
     for arm, rows in results.items():
         statuses = {r.final_status for r in rows}
         assert statuses <= valid_statuses, f"{arm} produced an unexpected status: {statuses - valid_statuses}"

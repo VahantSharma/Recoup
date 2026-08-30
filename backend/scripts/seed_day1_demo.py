@@ -6,7 +6,7 @@ actual test-mode checkout this session (see backend/data/harvested_corpus.json).
 Deliberately stops at ELIGIBLE. The plan originally said "show a payment_cases row +
 its first case_attempts row" — but the policy gate (Day 2) doesn't exist yet, so there
 is no real gate decision or reconcile-before-act to attach to a case_attempts row yet.
-Inserting one anyway would be exactly the kind of fabricated state CLAUDE.md forbids.
+Inserting one anyway would be exactly the kind of fabricated state docs/ENGINEERING-DOCTRINE.md forbids.
 The case_attempts mechanism itself (idempotency-key derivation, uniqueness, replay-is-
 a-no-op) is proven instead by backend/tests/test_idempotency.py.
 

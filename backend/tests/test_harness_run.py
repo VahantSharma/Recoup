@@ -270,7 +270,7 @@ class _YieldWhenCardHasPriorAttemptPolicy:
         return ActionProposal(action_type="retry_payment_link", amount_paise=case.amount)
 
 
-def _draft(id_, card_id, simulated_at_offset_hours, decline_class="soft"):
+def _draft(id_, card_id, simulated_at_offset_hours, decline_class="soft", opt_out=False):
     start = _start()
     return CaseDraft(
         razorpay_payment_id=id_, razorpay_order_id=None, card_id=card_id,
@@ -278,7 +278,73 @@ def _draft(id_, card_id, simulated_at_offset_hours, decline_class="soft"):
         error_description=None, error_source=None, error_step=None,
         decline_class=decline_class, decline_class_source="documented", risk_flagged=False,
         simulated_at=start + timedelta(hours=simulated_at_offset_hours),
+        opt_out=opt_out,
     )
+
+
+def test_opted_out_case_never_reaches_propose_for_any_arm():
+    """Do-not-disturb: excluded before the agent (the policy) ever sees it. Uses
+    BlindRetryPolicy, which proposes a retry unconditionally with no gate check of its
+    own -- if opt_out were leaking through, this is the policy that would prove it by
+    acting. 'hard' decline class makes organic recovery impossible
+    (p_case_recoverable_bps['hard'] == 0, unconditionally -- see
+    test_hard_decline_cases_are_never_recovered_in_any_arm), so a "not_recovered"
+    result here is unambiguously "the policy never got the chance," not "it recovered
+    organically and this test got lucky."""
+    corpus = [_draft("pay_optout", "card_solo", simulated_at_offset_hours=0, decline_class="hard", opt_out=True)]
+    rows = run_arm(corpus, BlindRetryPolicy(), master_seed=42, retry_delay_hours=24, max_case_lifetime_days=45)
+    row = rows[0]
+    assert row.final_status == "excluded_opted_out"
+    assert row.attempt_count == 0  # propose() was never called, so no attempt was ever scheduled
+    assert row.violation_count == 0  # nothing to log a violation against -- no proposal, no gate call
+    assert row.recovered is False
+    assert row.route_to is None
+    assert row.outcome == "not_recovered"
+
+
+def test_opted_out_case_that_organically_recovers_is_still_reported_recovered():
+    """Found live during an adversarial pass: do-not-disturb excludes a case from ever
+    being PROPOSED for -- it does not, and must not, exempt the case from its own
+    independently-scheduled ORGANIC event. A case excluded first and then organically
+    recovered afterward must flip to final_status='recovered', recovered=True,
+    recovered_via='organic' -- exactly the same pattern every other give_up() path
+    already uses (gave_up_gate_rejected, gave_up_lifetime_exceeded,
+    gave_up_yielded_scarce_budget all still count a later organic recovery). Getting
+    this wrong would silently undercount recovery for every opted-out customer who
+    pays on their own -- the customer is being measured correctly, not punished for
+    having opted out of contact."""
+    # This exact case_id, at master_seed=42, is a real example found live during the
+    # adversarial pass that surfaced this: ground truth draws it recoverable AND its
+    # organic-resolution roll fires (see app.simulator.outcomes.draw_ground_truth --
+    # the draw is keyed on (master_seed, case_id), so this combination is what makes
+    # the test deterministic rather than a hopeful random search).
+    corpus = [_draft("pay_synth_df0ee2b07d8b2777", "card_solo", simulated_at_offset_hours=0, decline_class="soft", opt_out=True)]
+    rows = run_arm(corpus, RulesOnlyPolicy(), master_seed=42, retry_delay_hours=24, max_case_lifetime_days=45)
+    row = rows[0]
+    assert row.recovered_via == "organic", (
+        "fixture assumption broken -- this case_id/seed no longer draws an organic "
+        "recovery; the property this test proves needs a different known-recovering id"
+    )
+    assert row.final_status == "recovered"
+    assert row.recovered is True
+
+
+def test_opted_out_case_does_not_affect_a_sibling_sharing_the_same_card():
+    """opt_out is a fact about ONE customer, not a property of the card -- a card with
+    an opted-out case on it must not change the OTHER case's own attempt, budget
+    accounting, or outcome. B arrives after A's would-be retry window either way; what
+    this test actually isolates is that A being opted out doesn't consume any of the
+    shared card's rolling attempt-budget count that B's own gate call sees."""
+    corpus = [
+        _draft("pay_optout", "card_shared", simulated_at_offset_hours=0, decline_class="hard", opt_out=True),
+        _draft("pay_normal", "card_shared", simulated_at_offset_hours=1, decline_class="soft", opt_out=False),
+    ]
+    rows = run_arm(corpus, RulesOnlyPolicy(), master_seed=42, retry_delay_hours=24, max_case_lifetime_days=45)
+    by_id = {r.case_id: r for r in rows}
+    assert by_id["pay_optout"].final_status == "excluded_opted_out"
+    # The normal case proposes and goes through the real gate exactly as it would if
+    # it were alone on its own card -- window_count sees 0 prior attempts, not 1.
+    assert by_id["pay_normal"].final_status != "excluded_opted_out"
 
 
 def test_a_case_yields_once_its_shared_card_already_has_a_recorded_attempt():

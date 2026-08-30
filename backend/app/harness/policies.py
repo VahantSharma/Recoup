@@ -32,6 +32,13 @@ class ObservableCase:
     risk_flagged: bool
     card_id: str | None
     simulated_at: datetime
+    opt_out: bool = False  # do-not-disturb -- see app.harness.run's own opt_out
+        # check, which excludes a case with this set to True from ever reaching
+        # Policy.propose() at all, for any arm. A policy never gets to read this
+        # field itself (there's no reason to: by the time propose() could see a
+        # case, opt_out has already been checked and the case has already been
+        # excluded if it was set) -- present here only so ObservableCase carries the
+        # same shape as the corpus row it's built from.
 
 
 @dataclass(frozen=True)

@@ -30,7 +30,11 @@ class CaseArmResult:
     resolved_at: datetime | None
     attempt_count: int  # action attempts actually executed
     violation_count: int  # gate rejections this arm acted through anyway (audit_only)
-    final_status: str  # "recovered" | "not_recovered" | "gave_up_gate_rejected" | "gave_up_lifetime_exceeded"
+    final_status: str  # "recovered" | "not_recovered" | "gave_up_gate_rejected" |
+                        # "gave_up_lifetime_exceeded" | "gave_up_yielded_scarce_budget" |
+                        # "excluded_opted_out" (do-not-disturb -- never reached the
+                        # policy at all, distinct from every gave_up_* reason, which
+                        # all follow an actual decision the policy or gate made)
     route_to: str | None  # None | "NEEDS_REVIEW" | "NOT_WORKED" -- copied verbatim
                            # from the gate's GateResult.route_to at the decision that
                            # ended this case's action-based path, if any
@@ -124,6 +128,7 @@ def _to_observable(draft: CaseDraft) -> ObservableCase:
         risk_flagged=draft.risk_flagged,
         card_id=draft.card_id,
         simulated_at=draft.simulated_at,
+        opt_out=draft.opt_out,
     )
 
 
@@ -196,6 +201,18 @@ def _run_arm_impl(
             continue
 
         now = event.when
+
+        # Do-not-disturb: excluded before the agent (the policy) ever sees it -- for
+        # every arm alike, since opt-out is a fact about the customer, not something
+        # any policy gets to weigh in on. No proposal is ever generated and no gate
+        # call is ever made; this is checked before ANY of the below, structurally
+        # identical to how a hard decline never reaches the model, just one level
+        # earlier -- ahead of the policy, not just ahead of the gate. Deliberately
+        # does NOT block the ORGANIC branch above: opting out of retry contact isn't
+        # opting out of being measured if the customer pays on their own regardless.
+        if state.case.opt_out:
+            state.give_up("excluded_opted_out", now)
+            continue
 
         if event.kind == "ACTION_DUE":
             attempt_number = len(state.history) + 1

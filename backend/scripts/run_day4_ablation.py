@@ -23,6 +23,9 @@ from pathlib import Path
 
 from app import manifest
 from app.corpus_builder import build_corpus
+from app.export import build_manifest, write_artifact
+from app.export_schemas import ArmHeldOutRow, Day4HeldOutAblationArtifact, LiftDistribution
+from app.harness.compliance import total_violations
 from app.harness.observable_optimal import ObservableOptimalParams, ObservableOptimalPolicy
 from app.harness.oracle import OracleUpperBoundPolicy
 from app.harness.policies import BlindRetryPolicy, ControlPolicy, ModelPlaybookPolicy, RulesOnlyPolicy
@@ -151,6 +154,49 @@ def main() -> None:
             print(f"  {count}/{len(HELD_OUT_SEEDS)}: " + " > ".join(ranking))
     else:
         print("ranking held at every held-out seed.")
+
+    # --- Stage 3 export: all 8 arms, held-out lift distributions, violations in the
+    # SAME row as gross recovery (never a separate table), shippable vs analysis-only
+    # marked explicitly per docs/day5surfaceplan.md's Stage 3 instruction. ---
+    SHIPPABLE = {
+        "control", "blind_retry", "rules_only", "tuned_weights",
+        "rules_plus_model_gemini", "rules_plus_model_groq",
+    }
+    arm_rows: list[ArmHeldOutRow] = []
+    for arm in ALL_ARMS:
+        total_arm_violations = sum(
+            total_violations(per_seed_results[seed][arm]) for seed in HELD_OUT_SEEDS
+        )
+        mean_rate = statistics.mean(_rate(per_seed_results[seed][arm]) for seed in HELD_OUT_SEEDS)
+        lift_dist = None
+        if arm in rate_deltas:
+            deltas = rate_deltas[arm]
+            lift_dist = LiftDistribution(
+                mean=statistics.mean(deltas), stdev=statistics.pstdev(deltas),
+                min=min(deltas), max=max(deltas), positive_seeds=sum(d > 0 for d in deltas),
+                total_seeds=len(deltas),
+            )
+        total_yields = sum(yield_counts[arm]) if arm in yield_counts else None
+        arm_rows.append(ArmHeldOutRow(
+            arm=arm, is_shippable=arm in SHIPPABLE, mean_recovery_rate=mean_rate,
+            total_violations=total_arm_violations, lift_vs_rules_only=lift_dist, total_yields=total_yields,
+        ))
+
+    artifact = Day4HeldOutAblationArtifact(
+        held_out_seeds=list(HELD_OUT_SEEDS), n_per_seed=N, arms=arm_rows,
+        modal_ranking=list(modal_ranking), modal_ranking_hold_count=modal_count,
+        per_seed_rankings=[list(r) for r in rankings],
+    )
+    export_manifest = build_manifest(
+        script="scripts/run_day4_ablation.py", schema_name=Day4HeldOutAblationArtifact.SCHEMA_NAME,
+        schema_version=Day4HeldOutAblationArtifact.SCHEMA_VERSION,
+        seed={"held_out_seeds": list(HELD_OUT_SEEDS)}, corpus_hash=None,
+        policy_params={}, simulator_params={}, use_common_random_numbers=USE_COMMON_RANDOM_NUMBERS,
+    )
+    out_path = write_artifact(
+        Day4HeldOutAblationArtifact.SCHEMA_NAME, Day4HeldOutAblationArtifact.SCHEMA_VERSION, export_manifest, artifact,
+    )
+    print(f"\nwrote {out_path}")
 
 
 if __name__ == "__main__":

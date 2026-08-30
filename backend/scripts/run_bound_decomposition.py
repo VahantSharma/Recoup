@@ -32,6 +32,8 @@ from datetime import datetime, timezone
 
 from app import manifest
 from app.corpus_builder import build_corpus
+from app.export import build_manifest, write_artifact
+from app.export_schemas import Day4BoundDecompositionArtifact, GapStat, NetValueBySeedRow, RateBySeedRow
 from app.harness.compliance import net_value_paise
 from app.harness.observable_optimal import ObservableOptimalPolicy, run_observable_optimal_search
 from app.harness.oracle import OracleUpperBoundPolicy, OracleValueMaximizingPolicy, run_oracle_value_maximizing_search
@@ -104,9 +106,12 @@ def main() -> None:
     ov_nv_by_seed = {s: net_value_paise(per_seed_rows[s]["oracle_value_maximizing"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE) for s in seeds}
     ou_nv_by_seed = {s: net_value_paise(per_seed_rows[s]["oracle_upper_bound"], COST_PER_CONTACT_ATTEMPT_MILLI_PAISE) for s in seeds}
     all_dominate = True
+    dominance_failed_seeds: list[int] = []
     for s in seeds:
         dominates = ov_nv_by_seed[s] >= ou_nv_by_seed[s]
         all_dominate = all_dominate and dominates
+        if not dominates:
+            dominance_failed_seeds.append(s)
         print(f"  seed={s}: oracle_value_maximizing={ov_nv_by_seed[s]:,.2f}  oracle_upper_bound={ou_nv_by_seed[s]:,.2f}  dominates={dominates}")
     print(f"dominates at every seed: {all_dominate}" + ("" if all_dominate else "  *** VIOLATION -- report, do not paper over ***"))
 
@@ -143,10 +148,14 @@ def main() -> None:
         return lift.rate_lift, lift.rate_lift_ci_low, lift.rate_lift_ci_high
 
     print("\nRATE gaps (primary chain: rules_only -> observable_optimal -> oracle_upper_bound):")
+    rate_gap1_by_seed: dict[int, float] = {}
+    rate_gap2_by_seed: dict[int, float] = {}
     for seed in seeds:
         g1 = _rate_gap("observable_optimal", "rules_only", seed)
         g2 = _rate_gap("oracle_upper_bound", "observable_optimal", seed)
         total = _rate_gap("oracle_upper_bound", "rules_only", seed)
+        rate_gap1_by_seed[seed] = g1[0]
+        rate_gap2_by_seed[seed] = g2[0]
         print(
             f"  seed={seed}: GAP1={g1[0]:+.4f} [{g1[1]:+.4f},{g1[2]:+.4f}]  GAP2={g2[0]:+.4f} [{g2[1]:+.4f},{g2[2]:+.4f}]  "
             f"GAP1+GAP2={g1[0]+g2[0]:+.4f}  direct(oracle_upper_bound-rules_only)={total[0]:+.4f}  "
@@ -166,10 +175,14 @@ def main() -> None:
         print(f"{arm:>26} {_fmt_paise(nv_by_arm_seed[arm][PROPOSAL_SEED]):>24} {_fmt_paise(statistics.mean(ho)):>24}")
 
     print("\nNET VALUE gaps (point differences; paired_bootstrap_lift's amount_lift is GROSS recovered amount, not net -- reported separately below for reference only):")
+    nv_gap1_by_seed: dict[int, float] = {}
+    nv_gap2_by_seed: dict[int, float] = {}
     for seed in seeds:
         g1v = nv_by_arm_seed["observable_optimal"][seed] - nv_by_arm_seed["rules_only"][seed]
         g2v = nv_by_arm_seed["oracle_value_maximizing"][seed] - nv_by_arm_seed["observable_optimal"][seed]
         total_v = nv_by_arm_seed["oracle_value_maximizing"][seed] - nv_by_arm_seed["rules_only"][seed]
+        nv_gap1_by_seed[seed] = g1v
+        nv_gap2_by_seed[seed] = g2v
         print(
             f"  seed={seed}: GAP1={_fmt_paise(g1v)}  GAP2={_fmt_paise(g2v)}  "
             f"GAP1+GAP2={_fmt_paise(g1v+g2v)}  direct={_fmt_paise(total_v)}  "
@@ -209,6 +222,61 @@ def main() -> None:
         "capacity on a shared card lets OTHER cases on that card get more tries than rules_only's congestion "
         "would have allowed."
     )
+
+    # --- Stage 3 export: both metrics, side by side, since they disagree and that
+    # disagreement is the finding -- never one gap shown and the other hidden. ---
+    def _gap_stat(label: str, by_seed: dict[int, float]) -> GapStat:
+        held_out = [by_seed[s] for s in HELD_OUT_SEEDS]
+        all_points = [by_seed[s] for s in seeds]
+        return GapStat(
+            label=label, in_sample=by_seed[PROPOSAL_SEED],
+            held_out_mean=statistics.mean(held_out), held_out_stdev=statistics.pstdev(held_out),
+            held_out_min=min(held_out), held_out_max=max(held_out),
+            positive_at=sum(1 for v in all_points if v > 0), total_points=len(all_points),
+        )
+
+    artifact = Day4BoundDecompositionArtifact(
+        proposal_seed=PROPOSAL_SEED, held_out_seeds=list(HELD_OUT_SEEDS),
+        rate_by_seed=[
+            RateBySeedRow(
+                seed=s, rules_only=rate_by_arm_seed["rules_only"][s],
+                observable_optimal=rate_by_arm_seed["observable_optimal"][s],
+                oracle_upper_bound=rate_by_arm_seed["oracle_upper_bound"][s],
+                oracle_value_maximizing=rate_by_arm_seed["oracle_value_maximizing"][s],
+            )
+            for s in seeds
+        ],
+        net_value_by_seed_paise=[
+            NetValueBySeedRow(
+                seed=s, rules_only_paise=nv_by_arm_seed["rules_only"][s],
+                observable_optimal_paise=nv_by_arm_seed["observable_optimal"][s],
+                oracle_upper_bound_paise=nv_by_arm_seed["oracle_upper_bound"][s],
+                oracle_value_maximizing_paise=nv_by_arm_seed["oracle_value_maximizing"][s],
+            )
+            for s in seeds
+        ],
+        rate_gap1=_gap_stat("observable_optimal - rules_only", rate_gap1_by_seed),
+        rate_gap2=_gap_stat("oracle_upper_bound - observable_optimal", rate_gap2_by_seed),
+        net_value_gap1_paise=_gap_stat("observable_optimal - rules_only", nv_gap1_by_seed),
+        net_value_gap2_paise=_gap_stat("oracle_value_maximizing - observable_optimal", nv_gap2_by_seed),
+        dominance_check_holds_at_every_seed=all_dominate,
+        dominance_check_failed_seeds=dominance_failed_seeds,
+        attempts_conserved_net=r_attempts - o_attempts,
+        attempts_reduced_by_class=reduced_by_class,
+        attempts_increased_by_class=increased_by_class,
+        overfitting_gap_paise=in_sample_lift - statistics.mean(held_out_lifts),
+    )
+    export_manifest = build_manifest(
+        script="scripts/run_bound_decomposition.py", schema_name=Day4BoundDecompositionArtifact.SCHEMA_NAME,
+        schema_version=Day4BoundDecompositionArtifact.SCHEMA_VERSION,
+        seed={"proposal_seed": PROPOSAL_SEED, "held_out_seeds": list(HELD_OUT_SEEDS)}, corpus_hash=None,
+        policy_params={}, simulator_params={}, use_common_random_numbers=USE_COMMON_RANDOM_NUMBERS,
+    )
+    out_path = write_artifact(
+        Day4BoundDecompositionArtifact.SCHEMA_NAME, Day4BoundDecompositionArtifact.SCHEMA_VERSION,
+        export_manifest, artifact,
+    )
+    print(f"\nwrote {out_path}")
 
 
 if __name__ == "__main__":

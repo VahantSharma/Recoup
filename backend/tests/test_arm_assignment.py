@@ -1,4 +1,10 @@
-from app.intake import ARMS, assign_arms_stratified
+from datetime import datetime, timezone
+
+import pytest
+
+from app.intake import ARMS, apply_do_not_disturb, assign_arms_stratified
+from app.models import PaymentCase
+from app.state_machine import IllegalTransition
 
 
 def test_deterministic_under_the_same_seed():
@@ -16,6 +22,49 @@ def test_different_seed_can_produce_a_different_assignment():
 def test_only_known_arms_are_used():
     arms = assign_arms_stratified(["soft"] * 40, seed=42)
     assert set(arms) <= set(ARMS)
+
+
+# --- do-not-disturb: the intake-time exclusion docs/ENGINEERING-DOCTRINE.md's guardrail table names,
+# wired here for the DB-model/state-machine path (app.harness.run has its own,
+# separate wiring for the in-memory ablation path -- see test_harness_run.py) ---
+
+def _now():
+    return datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
+def _classified_case(opt_out: bool) -> PaymentCase:
+    return PaymentCase(
+        razorpay_payment_id="pay_dnd_test", amount=10_000, currency="INR",
+        decline_class="soft", decline_class_source="documented", arm="rules_only",
+        state="CLASSIFIED", opt_out=opt_out,
+    )
+
+
+def test_opted_out_case_is_excluded_instead_of_made_eligible():
+    case = _classified_case(opt_out=True)
+    excluded = apply_do_not_disturb(case, now=_now)
+    assert excluded is True
+    assert case.state == "EXCLUDED"
+    assert case.excluded_reason == "opted_out"
+    assert case.state_updated_at == _now()
+
+
+def test_non_opted_out_case_is_left_untouched():
+    case = _classified_case(opt_out=False)
+    excluded = apply_do_not_disturb(case, now=_now)
+    assert excluded is False
+    assert case.state == "CLASSIFIED"  # unchanged -- caller proceeds to ELIGIBLE itself
+    assert case.excluded_reason is None
+
+
+def test_calling_out_of_order_fails_loudly_not_silently():
+    """EXCLUDED is only a legal transition from CLASSIFIED (state_machine.py's
+    LEGAL_TRANSITIONS) -- calling this on a case already past that point must raise,
+    never silently do nothing and leave a caller believing exclusion happened."""
+    case = _classified_case(opt_out=True)
+    case.state = "ELIGIBLE"  # simulate a caller applying this too late
+    with pytest.raises(IllegalTransition):
+        apply_do_not_disturb(case, now=_now)
 
 
 def test_stratum_proportions_are_balanced_when_evenly_divisible():

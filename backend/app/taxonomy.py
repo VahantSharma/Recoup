@@ -1,10 +1,10 @@
 """error_reason -> (decline_class, guardrail-relevant flags) classification.
 
-Rules, not a model call — a closed, documented set. See CLAUDE.md's "Where the model
+Rules, not a model call — a closed, documented set. See docs/ENGINEERING-DOCTRINE.md's "Where the model
 is used" table.
 
 Razorpay does not ship its own hard/soft/technical labels; the mapping below is
-Recoup's own interpretation of CLAUDE.md's definitions applied to Razorpay's real
+Recoup's own interpretation of docs/ENGINEERING-DOCTRINE.md's definitions applied to Razorpay's real
 reason vocabulary, not something Razorpay itself declares. Every entry's `source`
 says whether it was actually observed on a live API response this session
 ('harvested') or is Recoup's classification of a reason string documented at
@@ -59,7 +59,7 @@ REASON_TAXONOMY: dict[str, ReasonInfo] = {
 
 # Razorpay's docs do not expose distinct reason strings for stolen/lost card, closed
 # account, invalid account number, "do not honour," or Mastercard merchant-advice
-# codes as test-mode-triggerable — CLAUDE.md's own headline hard-decline examples.
+# codes as test-mode-triggerable — docs/ENGINEERING-DOCTRINE.md's own headline hard-decline examples.
 # There is no real Razorpay reason string to map for those; the gate's hard-decline
 # stop (Day 2) has to key off whatever Razorpay actually surfaces (closest real
 # analogs above: debit_instrument_blocked, payment_risk_check_failed) rather than

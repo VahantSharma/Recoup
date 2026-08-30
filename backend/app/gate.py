@@ -4,7 +4,7 @@ permitted. Never itself performs a money-touching action; the caller acts only w
 `decision == "approved"`.
 
 Guardrail order is deterministic and short-circuits on the first hit — each one is
-independently testable (see tests/test_gate.py), matching CLAUDE.md's "per-guardrail
+independently testable (see tests/test_gate.py), matching docs/ENGINEERING-DOCTRINE.md's "per-guardrail
 unit tests" requirement.
 """
 from __future__ import annotations
@@ -40,11 +40,17 @@ GUARDRAIL_ORDER: tuple[str, ...] = (
     "break_even_floor",
 )
 
-# Statuses observed (Day 1, live) or documented as meaning "already resolved,
-# nothing left to retry." Only 'captured' has actually been observed on a real
-# response this session — others get added once seen or independently verified,
-# not asserted from memory after this session's fabrication finding.
-_RESOLVED_STATUSES = {"captured"}
+# The ONLY reconciled status that affirmatively confirms "this payment is still
+# failed and was never collected" -- the one state in which a retry is even safe to
+# consider. Default-deny, not default-allow: an ADVERSARIAL PASS FINDING (see
+# docs/audit.md) -- this used to be `_RESOLVED_STATUSES = {"captured"}`, an allowlist
+# of the one known ALREADY-resolved status, with every OTHER status (authorized,
+# refunded, an unrecognized string, a typo, a status Razorpay adds after this was
+# written) falling through as "not resolved" and proceeding toward approval. That is
+# backwards for a system that moves money: an unrecognized reconciled state is a
+# reason to stop and get a human's eyes on it, never a reason to proceed. Inverted
+# here -- 'failed' is the only value that passes; everything else refuses.
+_ACTIONABLE_RECONCILED_STATUSES = {"failed"}
 
 
 @dataclass(frozen=True)
@@ -58,6 +64,15 @@ class GateResult:
     decision: str  # APPROVED | REJECTED
     reason: str  # which guardrail fired, or "permitted"
     route_to: str | None = None  # None | NEEDS_REVIEW | NOT_WORKED
+    observed_status: str | None = None  # populated only by "already_resolved" -- the
+        # actual reconciled status that caused the refusal (e.g. "captured",
+        # "refunded", an unrecognized string), so the audit trail names exactly what
+        # was observed rather than just that something didn't match. `reason` itself
+        # stays a fixed, small vocabulary (GUARDRAIL_ORDER) on purpose -- every other
+        # consumer (guardrail_counts dicts, the case-audit guardrail table, the
+        # frontend) keys off `reason` as one of those 9 known strings, so the actual
+        # status can never be interpolated into `reason` itself without breaking all
+        # of them.
 
 
 def evaluate(
@@ -98,9 +113,16 @@ def evaluate(
     if case.risk_flagged:
         return GateResult(REJECTED, "risk_hard_stop", NEEDS_REVIEW)
 
-    # 5. Reconcile-before-act's actual enforcement point: already resolved elsewhere.
-    if reconciled_payment.get("status") in _RESOLVED_STATUSES:
-        return GateResult(REJECTED, "already_resolved")
+    # 5. Reconcile-before-act's actual enforcement point, default-deny: a retry is
+    #    only ever considered when the reconciled status affirmatively confirms the
+    #    payment is still failed. Anything else -- already collected via another
+    #    channel, mid-flight (authorized), refunded, an unrecognized string, a typo,
+    #    a status Razorpay adds after this was written -- refuses and routes to a
+    #    human, never silently falls through toward approval on a status this gate
+    #    has never verified means "still failed."
+    observed_status = reconciled_payment.get("status")
+    if observed_status not in _ACTIONABLE_RECONCILED_STATUSES:
+        return GateResult(REJECTED, "already_resolved", NEEDS_REVIEW, observed_status=observed_status)
 
     # 6. Amount ceiling.
     amount = proposal.amount_paise if proposal.amount_paise is not None else case.amount
