@@ -1,0 +1,208 @@
+/* Shared masthead/provenance-strip/skeleton chrome for the Stage 3 screens --
+   token values only, deliberately the same values CaseAuditScreen.css already
+   established for its own masthead, so a reviewer switching screens sees one
+   consistent shell, not three competing ones. CaseAuditScreen.tsx keeps its own
+   copy untouched (Stage 2 is already shipped and verified); new screens use this. */
+
+.screen {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--sp-8) var(--sp-6) var(--sp-12);
+}
+
+.screen-purpose {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--text-dim);
+  max-width: 68ch;
+  line-height: 1.6;
+  margin: var(--sp-2) 0 0;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-5);
+  background: var(--accent);
+  color: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-badge);
+  font-family: var(--font-mono);
+  font-size: var(--t-sm-size);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.btn-primary:hover {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.masthead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--border-strong);
+  padding-bottom: var(--sp-4);
+}
+
+.masthead-wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.masthead-mark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--t-xl-size);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.masthead-tag {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--text-dim);
+}
+
+.masthead-right {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs-size);
+  letter-spacing: var(--t-xs-tracking);
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.screen-subtitle {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--text-dim);
+  margin: var(--sp-3) 0 0;
+  max-width: 68ch;
+  line-height: 1.6;
+}
+
+/* Prose, not a monospace sentence -- mono is for identifiers/ids/hashes/code only
+   (see tokens.css's own type-system note). Only the SHA itself (.provenance-strip-sha
+   below) is a real identifier and stays mono. */
+.provenance-strip {
+  text-align: center;
+  padding: var(--sp-3) 0;
+  margin: var(--sp-6) 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-dim);
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+}
+
+.provenance-strip-sha {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.provenance-strip-link {
+  color: var(--accent);
+  text-decoration: underline dotted var(--accent);
+  font-weight: 600;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.provenance-strip-link:hover {
+  color: var(--ok);
+  text-decoration-style: solid;
+}
+
+.load-error-help {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--text-dim);
+  max-width: 68ch;
+  line-height: 1.6;
+  margin: var(--sp-3) 0 var(--sp-4);
+}
+
+.load-error-command {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-badge);
+}
+
+.load-error {
+  white-space: pre-wrap;
+  background: var(--stop-tint);
+  border: 1px solid var(--stop);
+  padding: var(--sp-4);
+  border-radius: var(--radius-card);
+  color: var(--stop);
+  font-family: var(--font-mono);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  border-radius: var(--radius-card);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-block {
+  height: 220px;
+  margin-top: var(--sp-6);
+}
+
+/* --- shared section primitives --- */
+
+.section {
+  margin-top: var(--sp-8);
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--t-lg-size);
+  color: var(--text);
+  margin: 0 0 var(--sp-1);
+}
+
+.section-note {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--text-dim);
+  margin: 0 0 var(--sp-4);
+  max-width: 68ch;
+  line-height: 1.6;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--sp-4) var(--sp-6);
+}

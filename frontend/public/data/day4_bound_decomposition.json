@@ -1,0 +1,258 @@
+{
+  "schema_name": "day4_bound_decomposition",
+  "schema_version": "1.0.0",
+  "manifest": {
+    "git_sha": "051e925f61733859972464062d4a62ea89753d9a",
+    "script": "scripts/run_bound_decomposition.py",
+    "schema_name": "day4_bound_decomposition",
+    "schema_version": "1.0.0",
+    "generated_at": "2026-08-30T07:51:22.503478Z",
+    "seed": {
+      "proposal_seed": 42,
+      "held_out_seeds": [
+        101,
+        202,
+        303,
+        404,
+        505,
+        606,
+        707,
+        808,
+        909,
+        943
+      ]
+    },
+    "corpus_hash": null,
+    "policy_params": {},
+    "simulator_params": {},
+    "use_common_random_numbers": true
+  },
+  "data": {
+    "proposal_seed": 42,
+    "held_out_seeds": [
+      101,
+      202,
+      303,
+      404,
+      505,
+      606,
+      707,
+      808,
+      909,
+      943
+    ],
+    "rate_by_seed": [
+      {
+        "seed": 42,
+        "rules_only": 0.5253955037468776,
+        "observable_optimal": 0.5245628642797668,
+        "oracle_upper_bound": 0.5970024979184013,
+        "oracle_value_maximizing": 0.5811823480432973
+      },
+      {
+        "seed": 101,
+        "rules_only": 0.5120732722731057,
+        "observable_optimal": 0.5045795170691091,
+        "oracle_upper_bound": 0.5936719400499584,
+        "oracle_value_maximizing": 0.575353871773522
+      },
+      {
+        "seed": 202,
+        "rules_only": 0.5295587010824313,
+        "observable_optimal": 0.5295587010824313,
+        "oracle_upper_bound": 0.604496253122398,
+        "oracle_value_maximizing": 0.5845129059117402
+      },
+      {
+        "seed": 303,
+        "rules_only": 0.5245628642797668,
+        "observable_optimal": 0.5220649458784347,
+        "oracle_upper_bound": 0.6103247293921732,
+        "oracle_value_maximizing": 0.5895087427144047
+      },
+      {
+        "seed": 404,
+        "rules_only": 0.5412156536219817,
+        "observable_optimal": 0.5387177352206495,
+        "oracle_upper_bound": 0.6228143213988343,
+        "oracle_value_maximizing": 0.6053288925895087
+      },
+      {
+        "seed": 505,
+        "rules_only": 0.5403830141548709,
+        "observable_optimal": 0.5228975853455454,
+        "oracle_upper_bound": 0.6186511240632806,
+        "oracle_value_maximizing": 0.5953372189841799
+      },
+      {
+        "seed": 606,
+        "rules_only": 0.507910074937552,
+        "observable_optimal": 0.5137385512073273,
+        "oracle_upper_bound": 0.5803497085761865,
+        "oracle_value_maximizing": 0.5653621981681932
+      },
+      {
+        "seed": 707,
+        "rules_only": 0.5170691090757702,
+        "observable_optimal": 0.5195670274771024,
+        "oracle_upper_bound": 0.5961698584512906,
+        "oracle_value_maximizing": 0.578684429641965
+      },
+      {
+        "seed": 808,
+        "rules_only": 0.5403830141548709,
+        "observable_optimal": 0.533721898417985,
+        "oracle_upper_bound": 0.6144879267277269,
+        "oracle_value_maximizing": 0.5886761032472939
+      },
+      {
+        "seed": 909,
+        "rules_only": 0.5295587010824313,
+        "observable_optimal": 0.5137385512073273,
+        "oracle_upper_bound": 0.6003330557868443,
+        "oracle_value_maximizing": 0.5803497085761865
+      },
+      {
+        "seed": 943,
+        "rules_only": 0.5228975853455454,
+        "observable_optimal": 0.5104079933388843,
+        "oracle_upper_bound": 0.5895087427144047,
+        "oracle_value_maximizing": 0.5653621981681932
+      }
+    ],
+    "net_value_by_seed_paise": [
+      {
+        "seed": 42,
+        "rules_only_paise": 75393276.0,
+        "observable_optimal_paise": 79091887.0,
+        "oracle_upper_bound_paise": 84558971.0,
+        "oracle_value_maximizing_paise": 86095674.0
+      },
+      {
+        "seed": 101,
+        "rules_only_paise": 86427751.5,
+        "observable_optimal_paise": 89356567.0,
+        "oracle_upper_bound_paise": 96957359.5,
+        "oracle_value_maximizing_paise": 97974527.5
+      },
+      {
+        "seed": 202,
+        "rules_only_paise": 77669929.0,
+        "observable_optimal_paise": 80285687.5,
+        "oracle_upper_bound_paise": 87692107.5,
+        "oracle_value_maximizing_paise": 88356875.5
+      },
+      {
+        "seed": 303,
+        "rules_only_paise": 95082242.5,
+        "observable_optimal_paise": 96857196.0,
+        "oracle_upper_bound_paise": 104682320.0,
+        "oracle_value_maximizing_paise": 104763339.5
+      },
+      {
+        "seed": 404,
+        "rules_only_paise": 87376886.0,
+        "observable_optimal_paise": 89614783.5,
+        "oracle_upper_bound_paise": 97833754.0,
+        "oracle_value_maximizing_paise": 99103633.5
+      },
+      {
+        "seed": 505,
+        "rules_only_paise": 81475353.0,
+        "observable_optimal_paise": 82235913.5,
+        "oracle_upper_bound_paise": 92595951.5,
+        "oracle_value_maximizing_paise": 92930293.5
+      },
+      {
+        "seed": 606,
+        "rules_only_paise": 78151312.5,
+        "observable_optimal_paise": 81906069.5,
+        "oracle_upper_bound_paise": 87411664.5,
+        "oracle_value_maximizing_paise": 87997806.5
+      },
+      {
+        "seed": 707,
+        "rules_only_paise": 75382627.0,
+        "observable_optimal_paise": 77941436.0,
+        "oracle_upper_bound_paise": 86126051.5,
+        "oracle_value_maximizing_paise": 85678598.0
+      },
+      {
+        "seed": 808,
+        "rules_only_paise": 80110746.0,
+        "observable_optimal_paise": 82370847.5,
+        "oracle_upper_bound_paise": 89125717.0,
+        "oracle_value_maximizing_paise": 90383197.0
+      },
+      {
+        "seed": 909,
+        "rules_only_paise": 74293187.0,
+        "observable_optimal_paise": 75008465.5,
+        "oracle_upper_bound_paise": 83973023.0,
+        "oracle_value_maximizing_paise": 84385301.0
+      },
+      {
+        "seed": 943,
+        "rules_only_paise": 76500196.5,
+        "observable_optimal_paise": 77397808.5,
+        "oracle_upper_bound_paise": 86340640.0,
+        "oracle_value_maximizing_paise": 86033753.5
+      }
+    ],
+    "rate_gap1": {
+      "label": "observable_optimal - rules_only",
+      "in_sample": -0.0008326394671107411,
+      "held_out_mean": -0.005661948376353039,
+      "held_out_stdev": 0.007380023249345658,
+      "held_out_min": -0.017485428809325562,
+      "held_out_max": 0.005828476269775187,
+      "positive_at": 2,
+      "total_points": 11
+    },
+    "rate_gap2": {
+      "label": "oracle_upper_bound - observable_optimal",
+      "in_sample": 0.07243963363863447,
+      "held_out_mean": 0.08218151540383015,
+      "held_out_stdev": 0.007934577938851918,
+      "held_out_min": 0.06661115736885928,
+      "held_out_max": 0.09575353871773522,
+      "positive_at": 11,
+      "total_points": 11
+    },
+    "net_value_gap1_paise": {
+      "label": "observable_optimal - rules_only",
+      "in_sample": 3698611.0,
+      "held_out_mean": 2050454.35,
+      "held_out_stdev": 958369.0741979587,
+      "held_out_min": 715278.5,
+      "held_out_max": 3754757.0,
+      "positive_at": 11,
+      "total_points": 11
+    },
+    "net_value_gap2_paise": {
+      "label": "oracle_value_maximizing - observable_optimal",
+      "in_sample": 7003787.0,
+      "held_out_mean": 8463255.1,
+      "held_out_stdev": 1172043.6434828227,
+      "held_out_min": 6091737.0,
+      "held_out_max": 10694380.0,
+      "positive_at": 11,
+      "total_points": 11
+    },
+    "dominance_check_holds_at_every_seed": false,
+    "dominance_check_failed_seeds": [
+      707,
+      943
+    ],
+    "attempts_conserved_net": 386,
+    "attempts_reduced_by_class": {
+      "soft": 564,
+      "technical": 27
+    },
+    "attempts_increased_by_class": {
+      "soft": 183,
+      "technical": 22
+    },
+    "overfitting_gap_paise": 1648156.65
+  }
+}

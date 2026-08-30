@@ -92,6 +92,17 @@ export function LiveVerificationPanel() {
       {status === "error" && (
         <div className="live-panel-error">
           <strong>Could not run this live.</strong> {errorMessage}
+          <p className="live-panel-transcript-note">
+            <strong>What this does when it's running</strong> — since we can't show you
+            live right now: it fetches this payment's real, current status from Razorpay
+            directly, checks that status against the exact same safety rules as
+            everywhere else on this site, and only then either creates a real
+            test-mode payment link or refuses. Calling it twice with the same attempt
+            number proves the second call does nothing — it recognizes the repeat and
+            skips creating a second link, instead of charging twice. Nothing here is a
+            made-up example; every other number on this site already comes from a real
+            run, this is just the one thing that also runs live, in your own browser.
+          </p>
         </div>
       )}
 

@@ -8,7 +8,7 @@
    font-size/margin, or a bespoke transition duration anywhere outside this file is a
    bug -- see frontend/README.md's "design system" note. */
 
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
 :root {
   /* --- color: warm paper, deep ink, a muted bronze accent --- */
@@ -49,15 +49,20 @@
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* Five levels, each distinct in BOTH size and weight, not size alone -- so the
+     hierarchy still reads correctly even where a component can't afford much size
+     difference (a dense table, a narrow sidebar row). */
   --t-xs-size: 10.5px;
   --t-xs-weight: 500;
   --t-xs-tracking: 0.07em;
   --t-sm-size: 13px;
+  --t-sm-weight: 400;
   --t-md-size: 14.5px;
+  --t-md-weight: 500;
   --t-lg-size: 21px;
   --t-lg-weight: 600;
   --t-xl-size: 30px;
-  --t-xl-weight: 600;
+  --t-xl-weight: 700;
 
   /* --- space: 4px base --- */
   --sp-1: 4px;

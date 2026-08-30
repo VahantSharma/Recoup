@@ -13,7 +13,7 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
-  font: var(--t-sm-size) / 1.5 var(--font-sans);
+  font: var(--t-md-weight) var(--t-md-size) / 1.5 var(--font-sans);
 }
 
 #root {

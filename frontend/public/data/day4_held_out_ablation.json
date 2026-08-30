@@ -1,0 +1,258 @@
+{
+  "schema_name": "day4_held_out_ablation",
+  "schema_version": "1.0.0",
+  "manifest": {
+    "git_sha": "051e925f61733859972464062d4a62ea89753d9a",
+    "script": "scripts/run_day4_ablation.py",
+    "schema_name": "day4_held_out_ablation",
+    "schema_version": "1.0.0",
+    "generated_at": "2026-08-30T07:48:11.304391Z",
+    "seed": {
+      "held_out_seeds": [
+        101,
+        202,
+        303,
+        404,
+        505,
+        606,
+        707,
+        808,
+        909,
+        943
+      ]
+    },
+    "corpus_hash": null,
+    "policy_params": {},
+    "simulator_params": {},
+    "use_common_random_numbers": true
+  },
+  "data": {
+    "held_out_seeds": [
+      101,
+      202,
+      303,
+      404,
+      505,
+      606,
+      707,
+      808,
+      909,
+      943
+    ],
+    "n_per_seed": 1200,
+    "arms": [
+      {
+        "arm": "control",
+        "is_shippable": true,
+        "mean_recovery_rate": 0.18043297252289758,
+        "total_violations": 0,
+        "lift_vs_rules_only": null,
+        "total_yields": null
+      },
+      {
+        "arm": "blind_retry",
+        "is_shippable": true,
+        "mean_recovery_rate": 0.7207327227310575,
+        "total_violations": 147669,
+        "lift_vs_rules_only": null,
+        "total_yields": null
+      },
+      {
+        "arm": "rules_only",
+        "is_shippable": true,
+        "mean_recovery_rate": 0.5265611990008326,
+        "total_violations": 0,
+        "lift_vs_rules_only": null,
+        "total_yields": null
+      },
+      {
+        "arm": "tuned_weights",
+        "is_shippable": true,
+        "mean_recovery_rate": 0.5265611990008326,
+        "total_violations": 0,
+        "lift_vs_rules_only": {
+          "mean": 0.0,
+          "stdev": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "positive_seeds": 0,
+          "total_seeds": 10
+        },
+        "total_yields": 3518
+      },
+      {
+        "arm": "rules_plus_model_gemini",
+        "is_shippable": true,
+        "mean_recovery_rate": 0.5265611990008326,
+        "total_violations": 0,
+        "lift_vs_rules_only": {
+          "mean": 0.0,
+          "stdev": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "positive_seeds": 0,
+          "total_seeds": 10
+        },
+        "total_yields": 0
+      },
+      {
+        "arm": "rules_plus_model_groq",
+        "is_shippable": true,
+        "mean_recovery_rate": 0.5265611990008326,
+        "total_violations": 0,
+        "lift_vs_rules_only": {
+          "mean": 0.0,
+          "stdev": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "positive_seeds": 0,
+          "total_seeds": 10
+        },
+        "total_yields": 0
+      },
+      {
+        "arm": "observable_optimal",
+        "is_shippable": false,
+        "mean_recovery_rate": 0.5208992506244796,
+        "total_violations": 0,
+        "lift_vs_rules_only": {
+          "mean": -0.005661948376353039,
+          "stdev": 0.007380023249345658,
+          "min": -0.017485428809325562,
+          "max": 0.005828476269775187,
+          "positive_seeds": 2,
+          "total_seeds": 10
+        },
+        "total_yields": null
+      },
+      {
+        "arm": "oracle_upper_bound",
+        "is_shippable": false,
+        "mean_recovery_rate": 0.6030807660283097,
+        "total_violations": 0,
+        "lift_vs_rules_only": {
+          "mean": 0.0765195670274771,
+          "stdev": 0.005503614611044378,
+          "min": 0.06661115736885928,
+          "max": 0.08576186511240633,
+          "positive_seeds": 10,
+          "total_seeds": 10
+        },
+        "total_yields": null
+      }
+    ],
+    "modal_ranking": [
+      "blind_retry",
+      "oracle_upper_bound",
+      "rules_only",
+      "tuned_weights",
+      "rules_plus_model_gemini",
+      "rules_plus_model_groq",
+      "observable_optimal",
+      "control"
+    ],
+    "modal_ranking_hold_count": 8,
+    "per_seed_rankings": [
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "observable_optimal",
+        "control"
+      ],
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "observable_optimal",
+        "control"
+      ],
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "observable_optimal",
+        "control"
+      ],
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "observable_optimal",
+        "control"
+      ],
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "observable_optimal",
+        "control"
+      ],
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "observable_optimal",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "control"
+      ],
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "observable_optimal",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "control"
+      ],
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "observable_optimal",
+        "control"
+      ],
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "observable_optimal",
+        "control"
+      ],
+      [
+        "blind_retry",
+        "oracle_upper_bound",
+        "rules_only",
+        "tuned_weights",
+        "rules_plus_model_gemini",
+        "rules_plus_model_groq",
+        "observable_optimal",
+        "control"
+      ]
+    ]
+  }
+}

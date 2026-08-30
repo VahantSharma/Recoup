@@ -22,11 +22,13 @@
 }
 
 .infotip-bubble {
-  position: absolute;
+  /* position/top/left are set inline (InfoTip.tsx) via usePopoverPosition -- rendered
+     through a React portal into document.body, same reason and same mechanism as
+     Figure's popover (see Figure.css's comment and usePopoverPosition's docstring).
+     `top` from the hook is the trigger's top edge; translateY(-100%) below is what
+     actually sits the bubble ABOVE it, since a portaled element has no ordinary
+     document flow relative to its trigger to rely on any more. */
   z-index: 30;
-  bottom: 100%;
-  left: 50%;
-  margin-bottom: 7px;
   background: var(--text);
   color: var(--bg);
   font-family: var(--font-sans);
@@ -44,8 +46,8 @@
 }
 
 @keyframes infotip-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(4px) scale(0.94); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  from { opacity: 0; transform: translateX(-50%) translateY(calc(-100% + 4px)) scale(0.94); }
+  to { opacity: 1; transform: translateX(-50%) translateY(-100%) scale(1); }
 }
 
 .infotip-bubble::after {

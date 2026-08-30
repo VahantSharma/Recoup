@@ -108,7 +108,7 @@
 .gr-row-passed {
   height: 27px;
   color: var(--text-faint);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--t-sm-size);
 }
 
@@ -120,6 +120,15 @@
 
 .gr-row-passed .gr-name {
   color: var(--text-faint);
+}
+
+/* The raw snake_case identifier -- kept visible, always, next to its plain label,
+   just demoted to small mono secondary text. Translating, never hiding. */
+.gr-name-raw {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  flex-shrink: 0;
 }
 
 /* --- the deciding row: dominant, an ink stamp --- */
@@ -183,8 +192,21 @@
 }
 
 .gr-fired-name {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.gr-fired-raw {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.gr-fired-protects {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-style: italic;
   color: var(--text-dim);
 }
 
@@ -222,7 +244,7 @@
   height: 27px;
   color: var(--text-faint);
   opacity: 0.65;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--t-sm-size);
   font-style: italic;
 }
@@ -233,7 +255,7 @@
 
 .gr-skipped-note {
   color: var(--text-faint);
-  font-size: 10.5px;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

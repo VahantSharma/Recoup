@@ -1,0 +1,221 @@
+.landing {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--sp-12) var(--sp-6) var(--sp-12);
+}
+
+/* --- hero --- */
+
+.landing-hero {
+  max-width: 720px;
+}
+
+.landing-kicker {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs-size);
+  font-weight: var(--t-xs-weight);
+  letter-spacing: var(--t-xs-tracking);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 0 0 var(--sp-3);
+}
+
+.landing-headline {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 40px;
+  line-height: 1.2;
+  color: var(--text);
+  margin: 0 0 var(--sp-4);
+  max-width: 20ch;
+}
+
+.landing-lede {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  max-width: 60ch;
+  margin: 0 0 var(--sp-4);
+}
+
+.landing-promise {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text);
+  max-width: 60ch;
+  margin: 0 0 var(--sp-8);
+}
+
+.landing-promise strong {
+  color: var(--accent);
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* --- three headline stats --- */
+
+.landing-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-8);
+}
+
+.landing-stat {
+  padding-top: var(--sp-3);
+  border-top: 2px solid var(--border-strong);
+}
+
+.landing-stat .figure-value {
+  font-size: 32px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.landing-stat .figure-value:hover,
+.landing-stat .figure-value:focus-visible {
+  color: var(--accent);
+  background: none;
+}
+
+.landing-stat-caption {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  margin: var(--sp-2) 0 0;
+  max-width: 42ch;
+}
+
+.landing-tour-cta {
+  font-size: 15px;
+  padding: var(--sp-3) var(--sp-6);
+}
+
+/* --- five question cards --- */
+
+.landing-section-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--t-lg-size);
+  color: var(--text);
+  margin: 0 0 var(--sp-1);
+}
+
+.landing-section-note {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--text-dim);
+  max-width: 68ch;
+  line-height: 1.6;
+  margin: 0 0 var(--sp-6);
+}
+
+.landing-cards {
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-8);
+  border-top: 1px solid var(--border);
+}
+
+.landing-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: var(--sp-4);
+}
+
+.landing-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--sp-4) var(--sp-5);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.landing-card:hover {
+  border-color: var(--text-faint);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+.landing-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.landing-card-question {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.landing-card-summary {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.landing-card-goto {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs-size);
+  letter-spacing: var(--t-xs-tracking);
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-top: var(--sp-2);
+}
+
+/* --- evidence-scope box --- */
+
+.landing-evidence {
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-8);
+  border-top: 1px solid var(--border);
+}
+
+.landing-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--sp-4);
+}
+
+.landing-evidence-tier {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--sp-4);
+}
+
+.landing-evidence-badge {
+  margin-bottom: var(--sp-3);
+}
+
+.landing-evidence-body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .landing-headline {
+    font-size: 30px;
+  }
+
+  .landing-stats {
+    grid-template-columns: 1fr;
+  }
+}

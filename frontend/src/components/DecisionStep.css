@@ -67,7 +67,7 @@
 .step-body {
   flex: 1;
   min-width: 0;
-  padding-bottom: var(--sp-6);
+  padding-bottom: var(--sp-8);
 }
 
 .step-title {

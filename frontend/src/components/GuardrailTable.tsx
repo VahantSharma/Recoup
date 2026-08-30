@@ -1,6 +1,6 @@
 import "./GuardrailTable.css";
 import { toneForRouteTo } from "../lib/outcome";
-import { guardrailPlainLanguage } from "../lib/plainLanguage";
+import { guardrailPlainLanguage, guardrailProtects, guardrailShortLabel } from "../lib/plainLanguage";
 import type { GateCallRow } from "../lib/artifacts/types";
 
 const CHECK = (
@@ -51,7 +51,13 @@ export function GuardrailTable({ call }: { call: GateCallRow }) {
               <span className="gr-index">{i + 1}</span>
               <div className="gr-fired-body">
                 <span className="gr-fired-plain">{guardrailPlainLanguage(call.reason)}</span>
-                <span className="gr-fired-name">{row.name} — decided this case, step {i + 1} of 8</span>
+                <span className="gr-fired-name">
+                  {guardrailShortLabel(row.name)} — decided this case, step {i + 1} of 8{" "}
+                  <span className="gr-fired-raw">({row.name})</span>
+                </span>
+                {guardrailProtects(row.name) && (
+                  <span className="gr-fired-protects">What this protects against: {guardrailProtects(row.name)}</span>
+                )}
               </div>
               <span className="gr-stamp">{STAMP_TEXT[tone]}</span>
             </div>
@@ -62,15 +68,21 @@ export function GuardrailTable({ call }: { call: GateCallRow }) {
             <div key={row.name} className="gr-row gr-row-passed">
               <span className="gr-index">{i + 1}</span>
               <span className="gr-check" aria-hidden="true">{CHECK}</span>
-              <span className="gr-name">{row.name}</span>
+              <span className="gr-name">{guardrailShortLabel(row.name)}</span>
+              <span className="gr-name-raw">{row.name}</span>
             </div>
           );
         }
         return (
           <div key={row.name} className="gr-row gr-row-skipped">
             <span className="gr-index">{i + 1}</span>
-            <span className="gr-name">{row.name}</span>
-            <span className="gr-skipped-note">{row.note}</span>
+            <span className="gr-name">{guardrailShortLabel(row.name)}</span>
+            <span className="gr-name-raw">{row.name}</span>
+            {/* row.note is backend-generated ("not evaluated -- short-circuited at
+                <raw_reason>") -- reconstructed here from call.reason (the same fact,
+                already in hand) instead of displayed raw, so the guardrail name inside
+                it is translated too, not just the row's own name. */}
+            <span className="gr-skipped-note">Didn't run — {guardrailShortLabel(call.reason)} already decided this case</span>
           </div>
         );
       })}

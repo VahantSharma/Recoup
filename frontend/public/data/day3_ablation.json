@@ -1,0 +1,199 @@
+{
+  "schema_name": "day3_ablation",
+  "schema_version": "1.0.0",
+  "manifest": {
+    "git_sha": "051e925f61733859972464062d4a62ea89753d9a",
+    "script": "scripts/run_day3_ablation.py",
+    "schema_name": "day3_ablation",
+    "schema_version": "1.0.0",
+    "generated_at": "2026-08-30T07:28:29.365382Z",
+    "seed": 42,
+    "corpus_hash": "9551c3ed0f309e69d3112eceb05492ca5fe0ac0b8fd9188e0fe1fe20ec859bea",
+    "policy_params": {
+      "COST_PER_CONTACT_ATTEMPT_MILLI_PAISE": 11500,
+      "ATTEMPT_DECAY_FACTOR": 0.7,
+      "AMOUNT_CEILING_PAISE": 500000,
+      "NETWORK_ATTEMPT_BUDGET_PER_CARD_30D": 6,
+      "RECONCILE_FRESHNESS_WINDOW_SECONDS": 300,
+      "POLICY_PRIOR_RECOVERY_RATE_BPS": {
+        "hard": 0,
+        "soft": 5500,
+        "technical": 5500
+      }
+    },
+    "simulator_params": {
+      "ORGANIC_RECOVERY_RATE_BPS": {
+        "hard": 0,
+        "soft": 2500,
+        "technical": 2500
+      },
+      "P_CASE_RECOVERABLE_BPS": {
+        "hard": 0,
+        "soft": 8000,
+        "technical": 9000
+      },
+      "SIM_TRUE_RECOVERY_RATE_BPS": {
+        "hard": 0,
+        "soft": 5500,
+        "technical": 5500
+      }
+    },
+    "use_common_random_numbers": true
+  },
+  "data": {
+    "n": 1201,
+    "master_seed": 42,
+    "arms": [
+      {
+        "arm": "control",
+        "recovered_rate": 0.18900915903413823,
+        "deferred_rate": 0.0,
+        "not_recovered_rate": 0.8109908409658618,
+        "total_attempts": 0,
+        "total_violations": 0,
+        "recovered_amount_paise": 34028539,
+        "deferred_amount_paise": 0,
+        "net_value_paise": 34028539.0
+      },
+      {
+        "arm": "blind_retry",
+        "recovered_rate": 0.7377185678601166,
+        "deferred_rate": 0.0,
+        "not_recovered_rate": 0.2622814321398834,
+        "total_attempts": 15353,
+        "total_violations": 13982,
+        "recovered_amount_paise": 144335670,
+        "deferred_amount_paise": 0,
+        "net_value_paise": 144159110.5
+      },
+      {
+        "arm": "rules_only",
+        "recovered_rate": 0.5253955037468776,
+        "deferred_rate": 0.07160699417152373,
+        "not_recovered_rate": 0.4029975020815987,
+        "total_attempts": 1640,
+        "total_violations": 0,
+        "recovered_amount_paise": 75412136,
+        "deferred_amount_paise": 58625596,
+        "net_value_paise": 75393276.0
+      }
+    ],
+    "lifts": [
+      {
+        "arm_a": "rules_only",
+        "arm_b": "control",
+        "n_cases": 1201,
+        "rate_a": 0.5253955037468776,
+        "rate_b": 0.18900915903413823,
+        "rate_lift": 0.33638634471273937,
+        "rate_lift_ci_low": 0.3097418817651957,
+        "rate_lift_ci_high": 0.3638634471273938,
+        "amount_lift_paise": 41383597,
+        "amount_lift_ci_low_paise": 36463815.0,
+        "amount_lift_ci_high_paise": 46476436.0
+      },
+      {
+        "arm_a": "blind_retry",
+        "arm_b": "control",
+        "n_cases": 1201,
+        "rate_a": 0.7377185678601166,
+        "rate_b": 0.18900915903413823,
+        "rate_lift": 0.5487094088259784,
+        "rate_lift_ci_low": 0.5212323064113239,
+        "rate_lift_ci_high": 0.578684429641965,
+        "amount_lift_paise": 110307131,
+        "amount_lift_ci_low_paise": 96869105.0,
+        "amount_lift_ci_high_paise": 125039782.0
+      },
+      {
+        "arm_a": "blind_retry",
+        "arm_b": "rules_only",
+        "n_cases": 1201,
+        "rate_a": 0.7377185678601166,
+        "rate_b": 0.5253955037468776,
+        "rate_lift": 0.21232306411323898,
+        "rate_lift_ci_low": 0.18984179850124897,
+        "rate_lift_ci_high": 0.23563696919233973,
+        "amount_lift_paise": 68923534,
+        "amount_lift_ci_low_paise": 55746441.0,
+        "amount_lift_ci_high_paise": 83068309.0
+      }
+    ],
+    "guardrail_reachability": [
+      {
+        "name": "permitted",
+        "count": 1645,
+        "share": 0.7208588957055214,
+        "reachable": null,
+        "why": ""
+      },
+      {
+        "name": "stale_reconcile",
+        "count": 0,
+        "share": 0.0,
+        "reachable": false,
+        "why": "harness always calls gate.evaluate() with reconciled_at == now (age_seconds == 0 always) -- this guardrail guards a real production race (a stale local read vs. Razorpay's live state) that has no analog when the harness IS the live state. Acceptable: independently unit-tested (test_gate.py); simulating staleness would mean deliberately feeding the gate a wrong 'now', which tests the guardrail in isolation better than a corpus-level fluke would."
+      },
+      {
+        "name": "unclassifiable_decline_human_review",
+        "count": 4,
+        "share": 0.0017528483786152498,
+        "reachable": true,
+        "why": "was unreachable before this round (corpus only ever generated documented taxonomy reasons) -- fixed via unknown_reason_rate_bps, which injects reason strings absent from REASON_TAXONOMY at a small independent rate, the same pattern as risk_flag_rate_bps below."
+      },
+      {
+        "name": "hard_decline_stop",
+        "count": 116,
+        "share": 0.05083260297984225,
+        "reachable": true,
+        "why": "RulesOnlyPolicy proposes a retry for every decline class alike; the gate, not the policy, is what stops hard declines."
+      },
+      {
+        "name": "risk_hard_stop",
+        "count": 18,
+        "share": 0.007887817703768623,
+        "reachable": true,
+        "why": "was unreachable before this round (the only taxonomy reason carrying risk_flagged=True is HARD-classified, so hard_decline_stop always caught it first) -- fixed via risk_flag_rate_bps, an independent per-case risk draw."
+      },
+      {
+        "name": "already_resolved",
+        "count": 0,
+        "share": 0.0,
+        "reachable": false,
+        "why": "structurally distinct from stale_reconcile, not the same reason restated: reconciled_payment is hardcoded to {'status': 'failed'} for every gate call, AND the event queue is a strict chronological min-heap, so any case whose true organic resolution has already occurred by 'now' has already had its ORGANIC event processed (which sets recovered=True and halts all further events for that case) before any later-timed gate call could ever be reached. The harness cannot construct a case that reaches the gate with a stale 'failed' status after it has actually resolved -- not because reconcile is fresh, but because a resolved case never reaches another gate call at all. Acceptable for the same reason stale_reconcile is: independently unit-tested (test_gate.py), and it guards a real production race with no analog in a single-threaded, chronologically-ordered simulation."
+      },
+      {
+        "name": "amount_ceiling_needs_signoff",
+        "count": 79,
+        "share": 0.034618755477651184,
+        "reachable": true,
+        "why": "fires whenever a non-hard, non-unknown, non-risk-flagged case's amount clears AMOUNT_CEILING_PAISE."
+      },
+      {
+        "name": "network_attempt_budget_exhausted",
+        "count": 420,
+        "share": 0.18404907975460122,
+        "reachable": true,
+        "why": "fires once a card's rolling-30-day attempt count reaches NETWORK_ATTEMPT_BUDGET_PER_CARD_30D -- see card_reuse_factor's HEADLINE RISK entry."
+      },
+      {
+        "name": "break_even_floor",
+        "count": 0,
+        "share": 0.0,
+        "reachable": false,
+        "why": "known dead within reachable parameters at this corpus's ticket sizes -- see docs/assumptions.md's cost_per_contact_attempt_milli_paise finding: it only binds at the last reachable attempt (6) for payments near Rs1, far below this corpus's ticket-size distribution. Acceptable: independently proven to bind on a crafted extreme input (attempt 40, Rs1) via expected_value_milli_paise() called directly, and its binding boundary within the budget's reachable window is exhaustively tested attempt-by-attempt."
+      }
+    ],
+    "compliance": {
+      "net_value_blind_retry_paise": 144159110.5,
+      "net_value_rules_only_paise": 75393276.0,
+      "violations_blind_retry": 13982,
+      "break_even_penalty_paise": 4918.168681161494,
+      "break_even_penalty_usd": 0.5139152226919012,
+      "usd_to_inr": 95.7,
+      "visa_penalty_paise": 957.0,
+      "mastercard_low_paise": 9570.0,
+      "mastercard_high_paise": 19140.0
+    }
+  }
+}

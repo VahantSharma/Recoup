@@ -4,6 +4,16 @@
   max-width: 100%;
 }
 
+/* Provenance affordance lives on HOVER, not as a permanent underline on every single
+   value on the page. With every number on every screen wrapped in Figure by design,
+   an always-on accent-colored underline on all of them stops reading as "this is
+   checkable" and starts reading as pure visual noise -- a reviewer's eye stops
+   registering it within a few seconds. At rest, a value reads as plain text (its
+   normal color, no decoration); a very faint dotted underline is the one persistent
+   hint that SOMETHING here is interactive, low-contrast enough not to compete with
+   real content. Hovering or focusing reveals the real affordance: the accent color,
+   the solid-strength dotted underline, a tint behind it -- exactly the cue a reviewer
+   needs at the moment they're actually about to click, not before. */
 .figure-value {
   background: none;
   border: none;
@@ -16,16 +26,18 @@
   text-align: left;
   word-break: break-word;
   overflow-wrap: anywhere;
-  text-decoration: underline dotted var(--accent);
+  text-decoration: underline dotted var(--border-strong);
+  text-decoration-thickness: 1px;
   text-underline-offset: 3px;
   border-radius: 2px;
-  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), text-decoration-color var(--dur-fast) var(--ease-out);
 }
 
 .figure-value:hover,
 .figure-value:focus-visible {
   color: var(--accent);
   background: var(--accent-tint);
+  text-decoration-color: var(--accent);
 }
 
 .figure-value-mono {
@@ -42,11 +54,14 @@
 }
 
 .figure-popover {
-  position: absolute;
+  /* position/top/left are set inline (Figure.tsx) via usePopoverPosition -- this is
+     rendered through a React portal into document.body, positioned with
+     `position: fixed` from the trigger's real screen coordinates, specifically so no
+     ancestor's stacking context (see DecisionStep.css's `.step`) can trap it. z-index
+     still matters here: it's what orders multiple portaled popovers relative to each
+     other and to the rest of the body-level tree, now that there's no ancestor
+     stacking context left to escape. */
   z-index: 20;
-  top: 100%;
-  left: 0;
-  margin-top: var(--sp-2);
   background: var(--bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-card);
@@ -58,6 +73,16 @@
   box-shadow: var(--shadow-lg);
   transform-origin: top left;
   animation: figure-pop-in var(--dur-fast) var(--ease-out) forwards;
+  /* The real cap is set inline per-popover (Figure.tsx, from usePopoverPosition's
+     `maxHeight` -- computed from the trigger's actual on-screen position, so it
+     accounts for how far down the page the popover already starts, not just the
+     viewport's total height). This is only the pre-JS fallback so the popover is
+     never literally unbounded; overflow-y is what actually matters here -- without
+     it, expanding policy_params/simulator_params below would push content past
+     whatever the cap is with nothing to scroll it into view (it's `position: fixed`,
+     so the page's own scroll doesn't reach it). */
+  max-height: min(70vh, calc(100vh - 24px));
+  overflow-y: auto;
 }
 
 @keyframes figure-pop-in {

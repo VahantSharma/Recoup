@@ -157,6 +157,23 @@
   animation: live-panel-shake 420ms var(--ease-out);
 }
 
+/* Prose, not mono -- this is a full explanation, not an identifier. Degrades the
+   live panel to a plain-language description of what it does, so the screen still
+   demonstrates something with the backend down, never just a dead-end error. */
+.live-panel-transcript-note {
+  margin: var(--sp-3) 0 0;
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--stop);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.live-panel-transcript-note strong {
+  color: var(--text);
+}
+
 @keyframes live-panel-shake {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-5px); }

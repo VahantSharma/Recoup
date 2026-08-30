@@ -3,11 +3,13 @@ import "./CaseAuditScreen.css";
 import { loadCaseAudit } from "../lib/artifacts/loader";
 import { withProvenance } from "../lib/artifacts/provenance";
 import { decisiveReason, describeOutcome } from "../lib/outcome";
+import { declineClassLabel, declineReasonLabel, evidenceSourceShortLabel, finalStatusLabel } from "../lib/plainLanguage";
 import type { ArtifactEnvelope, CaseAuditArtifact, CaseAuditRow } from "../lib/artifacts/types";
 import { CaseList } from "./CaseList";
 import { CopyButton } from "./CopyButton";
 import { DecisionStep } from "./DecisionStep";
 import { Figure } from "./Figure";
+import { GlossaryTerm } from "./GlossaryTerm";
 import { GuardrailTable } from "./GuardrailTable";
 import { InfoTip } from "./InfoTip";
 import { LiveVerificationPanel } from "./LiveVerificationPanel";
@@ -103,11 +105,15 @@ export function CaseAuditScreen() {
         payment</em> — also carries a live panel you can call yourself, against
         Razorpay's real test-mode API, right now.
       </p>
+      <p className="screen-purpose">
+        This screen walks one failed payment through every real decision made about it, end to end.
+      </p>
 
       <div className="provenance-strip">
-        Every figure in the trace below resolves to run manifest{" "}
-        <span className="provenance-strip-sha">{shortSha}</span> — click any
-        <em> underlined or bordered</em> value to see exactly which run produced it, or{" "}
+        Every number in the trace below has a real{" "}
+        <GlossaryTerm term="manifest">receipt</GlossaryTerm> attached to it —{" "}
+        <span className="provenance-strip-sha">{shortSha}</span> — hover any underlined
+        or bordered value to see exactly which run produced it, or{" "}
         <a className="provenance-strip-link" href={CASE_AUDIT_URL} target="_blank" rel="noreferrer">
           open the raw data yourself ↗
         </a>
@@ -162,14 +168,18 @@ function CaseTrace({
     <div className="trace">
       {row.case_kind === "crafted" && (
         <div className="crafted-banner">
-          CRAFTED EXAMPLE — not drawn from the corpus. {row.crafted_note}
+          CRAFTED EXAMPLE — hand-built to show this guardrail, not one of the real
+          batch of cases this run worked. {row.crafted_note}
         </div>
       )}
 
       <DecisionStep number={1} title="Payment failed">
         <div className="kv-row">
           <span className="kv-label">reason</span>
-          <Figure value={p(row.error_reason ?? "(none)")} />
+          <span className="kv-value-group">
+            <Figure value={p(declineReasonLabel(row.error_reason))} />
+            {row.error_reason && <span className="kv-value-raw">{row.error_reason}</span>}
+          </span>
         </div>
         <div className="kv-row">
           <span className="kv-label">amount</span>
@@ -178,19 +188,25 @@ function CaseTrace({
         <div className="kv-row">
           <span className="kv-label">
             evidence
-            <InfoTip text="harvested = this exact failure was observed on a real Razorpay test-mode API call. documented = a realistic case built from Razorpay's published reason strings, not this specific payment." />
+            <InfoTip text="Verified live: observed by us, on a real payment -- this exact failure happened on a real Razorpay test-mode API call. Documented: published by Razorpay, not observed live by us -- a realistic case built from Razorpay's published reason strings, not this specific payment." />
           </span>
-          <Figure value={p(row.decline_class_source)} badgeTone={row.decline_class_source === "harvested" ? "ok" : "warn"} />
+          <span className="kv-value-group">
+            <Figure value={p(evidenceSourceShortLabel(row.decline_class_source))} badgeTone={row.decline_class_source === "harvested" ? "ok" : "warn"} />
+            <span className="kv-value-raw">{row.decline_class_source}</span>
+          </span>
         </div>
       </DecisionStep>
 
       <DecisionStep number={2} title="Classified">
         <div className="kv-row">
           <span className="kv-label">
-            taxonomy branch
-            <InfoTip text="Razorpay publishes the reason string ('debit_instrument_blocked') but not whether it's retryable. Sorting it into hard / soft / technical — and therefore whether a retry is even attempted — is Recoup's own judgment call." />
+            how it's sorted
+            <InfoTip text="Razorpay publishes the reason string ('debit_instrument_blocked') but not whether it's retryable. Sorting it into 'never retried' / 'worth retrying' / 'safe to retry fast' — and therefore whether a retry is even attempted — is Recoup's own judgment call." />
           </span>
-          <Figure value={p(row.decline_class)} />
+          <span className="kv-value-group">
+            <Figure value={p(declineClassLabel(row.decline_class))} />
+            <span className="kv-value-raw">{row.decline_class}</span>
+          </span>
         </div>
         <p className="step-note">
           This hard/soft/technical classification is Recoup's own work, built on card-network
@@ -235,8 +251,14 @@ function CaseTrace({
 
       <DecisionStep number={5} title="Outcome" isLast>
         <div className="kv-row">
-          <span className="kv-label">final status</span>
-          <Figure value={p(row.final_status)} />
+          <span className="kv-label">
+            how it ended
+            <InfoTip text="The exact path this case's action-taking side went down — separate from the outcome badge below, since a case can end up 'recovered' even after its action path gave up, if the customer paid on their own afterward." />
+          </span>
+          <span className="kv-value-group">
+            <Figure value={p(finalStatusLabel(row.final_status))} />
+            <span className="kv-value-raw">{row.final_status}</span>
+          </span>
         </div>
         <div className="kv-row">
           <span className="kv-label">outcome</span>

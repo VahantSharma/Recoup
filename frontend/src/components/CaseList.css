@@ -130,10 +130,17 @@
 }
 
 .unreachable-name {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--t-sm-size);
   color: var(--text);
   font-weight: 600;
+}
+
+.unreachable-name-raw {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-left: 6px;
 }
 
 .unreachable-why {

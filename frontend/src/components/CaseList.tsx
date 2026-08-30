@@ -2,7 +2,7 @@ import "./CaseList.css";
 import { Badge } from "./Badge";
 import { InfoTip } from "./InfoTip";
 import { decisiveReason, describeOutcome } from "../lib/outcome";
-import { plainLanguageSummary } from "../lib/plainLanguage";
+import { guardrailShortLabel, plainLanguageSummary } from "../lib/plainLanguage";
 import type { CaseAuditRow, UnreachableGuardrailNote } from "../lib/artifacts/types";
 
 /**
@@ -51,7 +51,7 @@ export function CaseList({
                 <div className="case-row-tech" title={row.case_id}>
                   <span className="case-row-id">{row.case_id}</span>
                   <span className="case-row-tech-sep">·</span>
-                  <span>{reason}</span>
+                  <span title={reason}>{reason === "(no action proposed)" ? reason : guardrailShortLabel(reason)}</span>
                 </div>
               </button>
             </li>
@@ -66,7 +66,8 @@ export function CaseList({
         <ul className="unreachable-list">
           {unreachable.map((n) => (
             <li key={n.name}>
-              <span className="unreachable-name">{n.name}</span>
+              <span className="unreachable-name">{guardrailShortLabel(n.name)}</span>
+              <span className="unreachable-name-raw">{n.name}</span>
               <p className="unreachable-why">{n.why}</p>
             </li>
           ))}

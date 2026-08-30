@@ -1,0 +1,108 @@
+{
+  "schema_name": "day4_bakeoff",
+  "schema_version": "1.0.0",
+  "manifest": {
+    "git_sha": "051e925f61733859972464062d4a62ea89753d9a",
+    "script": "scripts/run_day4_bakeoff.py",
+    "schema_name": "day4_bakeoff",
+    "schema_version": "1.0.0",
+    "generated_at": "2026-08-30T06:41:52.890544Z",
+    "seed": 42,
+    "corpus_hash": null,
+    "policy_params": {},
+    "simulator_params": {},
+    "use_common_random_numbers": true
+  },
+  "data": {
+    "proposal_seed": 42,
+    "n_calls_per_provider": 20,
+    "abstention_rule_commit_sha": "f4a846362b7c914a04a0614b691a9f02b843ed53",
+    "abstention_rule_commit_date": "2026-08-24",
+    "bakeoff_commit_sha": "43de681c5509ae9cb020c4c3a4971fb351ddb0f1",
+    "bakeoff_commit_date": "2026-08-27",
+    "providers": [
+      {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "n_calls": 20,
+        "schema_valid_count": 20,
+        "sensible_count": 20,
+        "abstained": true,
+        "abstain_reason": "Rule B: defer_priority_cutoff CV=1.265 exceeds MAX_CUTOFF_CV=0.3",
+        "checks": [
+          {
+            "rule": "A",
+            "description": "reliability floor -- generations that were schema-valid AND sensible",
+            "computed_value": "20/20",
+            "threshold": ">= 17/20",
+            "fired": false
+          },
+          {
+            "rule": "B_weight_ratio",
+            "description": "dispersion of soft/technical priority_weight ratio (CV)",
+            "computed_value": "CV=0.112",
+            "threshold": "<= 0.30",
+            "fired": false
+          },
+          {
+            "rule": "B_defer_priority_cutoff",
+            "description": "dispersion of defer_priority_cutoff (CV)",
+            "computed_value": "CV=1.265",
+            "threshold": "<= 0.30",
+            "fired": true
+          },
+          {
+            "rule": "C",
+            "description": "agreement on scarcity_remaining_budget_threshold (modal value=2)",
+            "computed_value": "95.0% of 20 sensible generations",
+            "threshold": ">= 60%",
+            "fired": false
+          }
+        ],
+        "total_input_tokens": 12860,
+        "total_output_tokens": 3585
+      },
+      {
+        "provider": "groq",
+        "model_id": "openai/gpt-oss-120b",
+        "n_calls": 20,
+        "schema_valid_count": 20,
+        "sensible_count": 20,
+        "abstained": true,
+        "abstain_reason": "Rule B: weight_ratio CV=0.359 exceeds MAX_WEIGHT_RATIO_CV=0.3",
+        "checks": [
+          {
+            "rule": "A",
+            "description": "reliability floor -- generations that were schema-valid AND sensible",
+            "computed_value": "20/20",
+            "threshold": ">= 17/20",
+            "fired": false
+          },
+          {
+            "rule": "B_weight_ratio",
+            "description": "dispersion of soft/technical priority_weight ratio (CV)",
+            "computed_value": "CV=0.359",
+            "threshold": "<= 0.30",
+            "fired": true
+          },
+          {
+            "rule": "B_defer_priority_cutoff",
+            "description": "dispersion of defer_priority_cutoff (CV)",
+            "computed_value": "CV=0.127",
+            "threshold": "<= 0.30",
+            "fired": false
+          },
+          {
+            "rule": "C",
+            "description": "agreement on scarcity_remaining_budget_threshold (modal value=2)",
+            "computed_value": "60.0% of 20 sensible generations",
+            "threshold": ">= 60%",
+            "fired": false
+          }
+        ],
+        "total_input_tokens": 20000,
+        "total_output_tokens": 10684
+      }
+    ]
+  }
+}
