@@ -145,7 +145,7 @@ function LiftChart({ data, height, muted }: { data: LiftDatum[]; height: number;
 
   // Recharts' auto domain on all-exactly-zero data (a real, disclosed finding here --
   // both model arms landed exactly on rules_only's own fallback, see
-  // interview/16-the-model-layer.md) picks an arbitrary wide range with no visible
+  // docs/results.md's Day 4 section) picks an arbitrary wide range with no visible
   // bar at all. Compute an explicit domain from the real data instead, with a small
   // floor so a zero-width bar still renders as a visible hairline, not empty space.
   const allEdges = data.flatMap((d) => [d.mean - d.range[0], d.mean + d.range[1]]);
@@ -202,7 +202,7 @@ function LiftChart({ data, height, muted }: { data: LiftDatum[]; height: number;
         Every approach here lands at exactly the same number as our rules engine — not
         just close, identical — across all 10 separate{" "}
         <GlossaryTerm term="seed">random-number seeds</GlossaryTerm> we tested it on. See{" "}
-        <span className="mono-inline">interview/16-the-model-layer.md</span>.
+        <span className="mono-inline">docs/results.md</span>'s Day 4 section.
       </p>
     )}
     </>

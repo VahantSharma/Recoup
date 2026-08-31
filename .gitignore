@@ -34,7 +34,17 @@ backend/data/model_cache/
 .vscode/*
 !.vscode/extensions.json
 
-# local Claude Code settings -- per-machine (which MCP servers are enabled locally),
-# not project config; a committed copy of this reads as carelessness, not intent.
-# .claude/commands/ (the project's own slash commands) stays tracked.
+# local Claude Code settings/tooling -- development-environment configuration, kept
+# locally, not submission content. A committed copy reads as carelessness, not intent.
 .claude/settings.local.json
+.claude/commands/
+
+# Prompt transcripts and interview-prep material -- real working documents, kept
+# locally, but a transcript of instructing an AI ("paste everything below the line")
+# and first-person interview rehearsal notes are not submission content. Deleted from
+# tracking, not deleted from disk -- see docs/README.md for where their real content
+# now lives publicly (architecture.md, docs/results.md, docs/ENGINEERING-DOCTRINE.md).
+docs/day4prompt.md
+docs/day5surfaceplan.md
+interviewfolderspec.md
+interview/

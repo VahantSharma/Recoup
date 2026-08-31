@@ -1,8 +1,6 @@
 # Recoup frontend
 
-React + Vite + TypeScript. A demonstration instrument for one viewer, five minutes — see
-`../docs/day5surfaceplan.md` for the full build order and scope (binding; not
-relitigated here).
+React + Vite + TypeScript. A demonstration instrument for one viewer, five minutes.
 
 ## Design system
 
@@ -59,10 +57,20 @@ never a silent failure.
 
 ## Screens
 
-- **Case audit** (`src/components/CaseAuditScreen.tsx`) — Stage 2. One failed payment,
-  end to end: failure reason + provenance, classification, every guardrail's real
-  verdict in checked order, the proposed action, the idempotency key, the outcome, and
-  the one live panel above.
+- **Landing** (`src/components/Landing.tsx`) — default route. The claim, three headline
+  stats, the evidence-tier legend, and the guided tour's entry point.
+- **Case audit** (`src/components/CaseAuditScreen.tsx`) — one failed payment, end to
+  end: failure reason + provenance, classification, every guardrail's real verdict in
+  checked order, the proposed action, the idempotency key, the outcome, and the one
+  live panel.
+- **Ablation table** (`src/components/AblationTableScreen.tsx`) — all 8 arms' held-out
+  lift and compliance-violation counts, shippable vs. analysis-only marked explicitly.
+- **Assumption sliders** (`src/components/AssumptionSlidersScreen.tsx`) — the OAT
+  sensitivity sweep, interactive: move a slider, watch the ranking reorder (or not).
+- **Three-bound decomposition** (`src/components/ThreeBoundDecompositionScreen.tsx`) —
+  achieved / observable-optimal / oracle, each gap labeled by what information it needs.
+- **Model layer panel** (`src/components/ModelLayerPanel.tsx`) — the bake-off, the
+  pre-registered abstention rule, and why both providers abstained.
 
-Later stages (ablation table + sliders, portfolio view, model layer panel) get their own
-components here as their own artifacts land — see `docs/day5surfaceplan.md`.
+A guided tour (`src/components/TourChrome.tsx`) walks all five non-landing screens in
+sequence with keyboard navigation and hash deep-links (`#tour/0`..`#tour/4`).

@@ -50,7 +50,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 # The two commits that establish "the abstention rule was written before any bake-off
 # result existed" as a checkable fact, not just an assertion -- verified directly via
 # `git show --no-patch` this session, not recalled. See docs/results.md's Day 4
-# section and interview/18-what-broke-and-how-i-found-it.md for the full account.
+# section for the full account.
 ABSTENTION_RULE_COMMIT_SHA = "f4a846362b7c914a04a0614b691a9f02b843ed53"
 ABSTENTION_RULE_COMMIT_DATE = "2026-08-24"
 BAKEOFF_COMMIT_SHA = "43de681c5509ae9cb020c4c3a4971fb351ddb0f1"

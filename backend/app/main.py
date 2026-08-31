@@ -1,4 +1,4 @@
-"""Day 5's one live path (docs/day5surfaceplan.md): a single FastAPI endpoint that
+"""Day 5's one live path: a single FastAPI endpoint that
 performs reconcile-before-act against real Razorpay test mode on the one real harvested
 payment, drives that case through the real, full state machine (app.state_machine) at
 every step -- not just to ELIGIBLE and no further -- and demonstrates two distinct

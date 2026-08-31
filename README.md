@@ -211,7 +211,6 @@ the difference — old numbers next to new, not overwritten.
 | `backend/` | FastAPI app — corpus builder, taxonomy, state machine, policy gate, harness, simulator, model layer, the one live endpoint, tests |
 | `frontend/` | React + Vite reviewer surface — landing page, guided tour, case audit, ablation table, model layer panel |
 | `docs/` | The plan, results (with corrections), assumptions register, the self-audit, the engineering doctrine, screenshots — see [`docs/README.md`](docs/README.md) for the full map |
-| `interview/` | Personal interview-prep material — not part of the submission surface, disclosed where it lags the corrections in `docs/` |
 | `data/` | Local SQLite DB (gitignored) + the real harvested-corpus JSON (tracked) |
 | `.github/workflows/` | The CI workflow this README's badge points at |
 

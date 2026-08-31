@@ -1,12 +1,12 @@
-"""Pydantic models for every artifact Recoup exports to the frontend. Day 5's standing
+"""Pydantic models for every artifact Recoup exports to the frontend. The standing
 rule, enforced here structurally rather than by convention: no number reaches the
 screen except through a committed artifact, and no artifact reaches disk except as an
 instance of one of these models -- app.export.write_artifact() takes a model instance,
 never a raw dict, so a script can't emit a malformed artifact even by accident.
 
 Each artifact carries its own ArtifactManifest (git SHA, seed, corpus hash, simulator
-params, CRN flag, timestamp) -- docs/ENGINEERING-DOCTRINE.md's "every number resolves to a manifest" made
-literal, per docs/day5surfaceplan.md's architecture decision.
+params, CRN flag, timestamp) -- docs/ENGINEERING-DOCTRINE.md's "every number resolves
+to a manifest" made literal.
 
 Built through Stage 3: CaseAuditArtifact (Stage 2) and the five Stage-3 artifacts below
 — day3_ablation, day3_sweep, day4_held_out_ablation, day4_bound_decomposition,
@@ -116,8 +116,9 @@ class CaseAuditArtifact(BaseModel):
 
 class ArmOutcomeRow(BaseModel):
     """One arm's three-way outcome split plus attempts/violations/amounts -- gross
-    recovery and its violation count live in the SAME row on purpose (never a separate
-    table), per docs/day5surfaceplan.md's Stage 3 instruction."""
+    recovery and its violation count live in the SAME row on purpose, never a separate
+    table, so blind-retry's higher gross recovery can never be shown without what it
+    costs sitting right next to it."""
 
     model_config = ConfigDict(extra="forbid")
 

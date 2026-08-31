@@ -6,7 +6,7 @@ suite). What IS tested for real here is the logic the plan's round-2 review dema
 reconcile actually gating the action, and attempt_number-driven idempotent replay --
 verified against the real gate.evaluate() and the real CaseAttempt table, not mocked
 away. The two real network calls themselves are verified separately, manually, against
-the actually-running server (see docs/day5surfaceplan.md's live-endpoint verification).
+the actually-running server -- see VERIFY.md.
 """
 from __future__ import annotations
 

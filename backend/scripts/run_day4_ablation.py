@@ -157,7 +157,7 @@ def main() -> None:
 
     # --- Stage 3 export: all 8 arms, held-out lift distributions, violations in the
     # SAME row as gross recovery (never a separate table), shippable vs analysis-only
-    # marked explicitly per docs/day5surfaceplan.md's Stage 3 instruction. ---
+    # marked explicitly. ---
     SHIPPABLE = {
         "control", "blind_retry", "rules_only", "tuned_weights",
         "rules_plus_model_gemini", "rules_plus_model_groq",

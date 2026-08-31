@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -125,13 +126,19 @@ def test_verify_md_and_architecture_md_exist_and_are_linked_from_readme():
 def test_readme_links_to_reviewing_and_docs_index_and_repo_map_covers_top_level():
     """REVIEWING.md and docs/README.md both exist and are linked; the repo-map table
     doesn't have to be exhaustive but must at least name every top-level directory a
-    reviewer would actually open."""
+    reviewer would actually clone and see."""
     assert (REPO_ROOT / "REVIEWING.md").is_file()
     assert (REPO_ROOT / "docs" / "README.md").is_file()
     text = _readme_text()
     assert "REVIEWING.md" in text
-    top_level_dirs = {p.name for p in REPO_ROOT.iterdir() if p.is_dir() and not p.name.startswith(".")}
-    # data/ and interview/ are real top-level dirs but not code -- still worth a row
-    # each so a reviewer never has to guess what they are.
+    # Tracked directories only, via `git ls-files` -- not a raw filesystem walk. A
+    # gitignored local-only directory (e.g. interview/, kept on disk but untracked)
+    # is real on THIS machine but doesn't exist in a fresh clone; requiring README.md
+    # to mention it would make this test's outcome depend on whose machine runs it.
+    result = subprocess.run(
+        ["git", "ls-tree", "-d", "--name-only", "HEAD"],
+        cwd=REPO_ROOT, capture_output=True, text=True, check=True,
+    )
+    top_level_dirs = {line for line in result.stdout.splitlines() if line}
     for name in top_level_dirs:
         assert name in text, f"'{name}/' is a real top-level directory but isn't mentioned anywhere in README.md"

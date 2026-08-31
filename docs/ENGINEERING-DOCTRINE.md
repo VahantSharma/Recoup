@@ -23,7 +23,7 @@ An agent that retries payments can double-charge a customer. Two mechanisms prev
 - **Reconcile-before-act** — always fetch the payment's current state from Razorpay immediately before any money action. The local DB is a cache that may be stale, never truth.
 - **Idempotency key per attempt** — derived deterministically from `(case_id, attempt_number)`, so a replayed action is a no-op rather than a second charge.
 
-The case store is a durable state machine with legal transitions, so a process that dies mid-action resumes instead of re-firing. Exercised for real, not just tested in isolation, by the one live endpoint (`app/main.py`) — every transition is a real committed row, and a mid-action crash is directly demonstrated resuming rather than re-firing, against the real database (see `interview/11-state-machine-and-idempotency.md` and `docs/results.md`'s state-machine-ordering correction for the full account, including the one specific external-API limitation this still can't close).
+The case store is a durable state machine with legal transitions, so a process that dies mid-action resumes instead of re-firing. Exercised for real, not just tested in isolation, by the one live endpoint (`app/main.py`) — every transition is a real committed row, and a mid-action crash is directly demonstrated resuming rather than re-firing, against the real database (see `docs/results.md`'s state-machine-ordering correction for the full account, including the one specific external-API limitation this still can't close).
 
 ## The policy gate is deterministic and lives OUTSIDE the model
 

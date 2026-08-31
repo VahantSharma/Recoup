@@ -21,8 +21,7 @@ from app.export_schemas import (
 FRONTEND_PUBLIC_DATA = Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "data"
 
 # schema_name -> the Pydantic model that owns it. Every artifact committed under
-# frontend/public/data/ must have an entry here -- Stage 6 (architecture.md) is the
-# only thing left un-exported per docs/day5surfaceplan.md's Stage 1 list.
+# frontend/public/data/ must have an entry here.
 _REGISTRY = {
     "case_audit": CaseAuditArtifact,
     "day3_ablation": Day3AblationArtifact,

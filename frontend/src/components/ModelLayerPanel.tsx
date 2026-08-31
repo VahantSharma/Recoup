@@ -14,8 +14,7 @@ const URL = "/data/day4_bakeoff.json";
 
 // Real prices, fetched directly from each provider's own pricing page this session
 // (ai.google.dev's Gemini 3.5 Flash-Lite page; console.groq.com's gpt-oss-120b model
-// page) — the same two figures already cited in interview/16-the-model-layer.md, not
-// re-derived independently here. $ per million tokens.
+// page), not re-derived independently here. $ per million tokens.
 const PRICING: Record<string, { input: number; output: number }> = {
   gemini: { input: 0.30, output: 2.50 },
   groq: { input: 0.15, output: 0.60 },

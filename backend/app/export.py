@@ -1,7 +1,6 @@
-"""Writes committed run artifacts for the frontend -- the Stage 1 export layer
-docs/day5surfaceplan.md calls for. The standing rule this module exists to enforce
-structurally, not by convention: no number reaches the screen except through a
-committed artifact carrying its own manifest.
+"""Writes committed run artifacts for the frontend -- the Stage 1 export layer. The
+standing rule this module exists to enforce structurally, not by convention: no number
+reaches the screen except through a committed artifact carrying its own manifest.
 
 write_artifact() only ever accepts a Pydantic model instance (one of
 app.export_schemas's classes) as `data`, never a raw dict -- validation happens at

@@ -3,19 +3,22 @@
 Full interactive version, including the ten review findings and the corrected architecture diagram:
 https://claude.ai/code/artifact/da31f555-e263-4047-9958-ea2e9f7e2f25
 
-## Status: Day 5 (Stage 1–2 of `docs/day5surfaceplan.md`) in progress
+## Status: Day 5 complete
 
-Days 1–4 are complete: a real payment traces end-to-end from a live Razorpay payment id
+Days 1–4: a real payment traces end-to-end from a live Razorpay payment id
 through to a case row (Day 1); a deterministic policy gate with 8 guardrails runs
 against a resampled corpus, every non-harvested parameter sourced or explicitly flagged
 in [`docs/assumptions.md`](assumptions.md) (Day 2); the paired-comparison harness under
 common random numbers, lift with confidence intervals, and the full sensitivity sweep
 are built and reported in [`docs/results.md`](results.md) (Day 3); the model layer's
 grid search, pre-registered abstention, and real two-provider bake-off ran and both
-abstained, reported in the same file (Day 4). Day 5's export layer, case audit screen,
-and one live Razorpay verification endpoint are built and committed — see
-[`docs/day5surfaceplan.md`](day5surfaceplan.md) for what's shipped versus what's still
-open (the ablation table + sliders, the portfolio view, `architecture.md`).
+abstained, reported in the same file (Day 4). Day 5: export layer, case audit screen,
+one live Razorpay verification endpoint, the ablation table and assumption-sliders
+screens, the model-layer panel, the landing page and guided tour, and
+[`architecture.md`](../architecture.md) are all built and committed. The one
+Day-5-scoped item that didn't ship is a separate "portfolio view" screen — superseded
+by the guided tour's card grid, which ended up covering the same "which case looks
+like what" orientation need without a sixth screen.
 
 ## Buildathon facts (verified)
 
@@ -58,9 +61,9 @@ Ordered so **every day ends with something submittable** — the rules-only prod
 2. ✅ **Compliance-aware policy engine.** `docs/assumptions.md` (every parameter sourced or flagged), `corpus_builder.py`, the unknown-decline path (routes to human review, never silent auto-retry), run provenance, and the gate itself — 8 guardrails: stale-reconcile, unknown-decline, hard-decline, risk-hard-stop, already-resolved, amount ceiling, network attempt budget, break-even floor. *Ships a defensible rules-only product.*
 3. ✅ **Simulator + eval harness.** `app/simulator/` (ground truth, structurally unreadable by policy code), the paired-comparison harness under common random numbers, lift with confidence intervals, the full OAT + joint sensitivity sweep, compliance-violation counter. Reported in `docs/results.md`.
 4. ✅ **The model layer, re-scoped.** Deterministic grid search, a pre-registered abstention rule, and a real 20-call bake-off across two providers — both abstained, mechanically, under the rule committed before either ran. Reported in `docs/results.md`.
-5. 🔶 **Surface + packaging, in progress.** `docs/day5surfaceplan.md`'s Stage 1 (export layer) and Stage 2 (case audit screen + the one live Razorpay verification endpoint) are built and committed. Still open: the ablation table + assumption sliders (Stage 3), the portfolio view (Stage 4), the model-layer panel (Stage 5), `architecture.md` (Stage 6), the pitch video.
-6. **(buffer) Adversarial pass.** Fresh seeds, kill-mid-action restart test, expired key / empty batch / malformed row.
-7. **(buffer) Rehearsal.** Timed pitch, rehearse the panel probes, submit early.
+5. ✅ **Surface + packaging.** Export layer, case audit screen, the one live Razorpay verification endpoint, the ablation table and assumption-sliders screens, the model-layer panel, the landing page and guided tour, and `architecture.md` are all built and committed. The originally-planned separate "portfolio view" screen didn't ship — superseded by the guided tour's card grid.
+6. ✅ **(buffer) Adversarial pass.** `docs/audit.md` — every claim in the doctrine file checked against the code, hostile inputs fired at the money path and the artifact layer, a real concurrent-race test, determinism proven by re-running the pipeline, a cost check. Six real problems found; fixed or honestly disclosed.
+7. **(buffer) Rehearsal.** Timed pitch, rehearse the panel probes, submit early. Not yet done — the pitch video is still outstanding.
 
 ## Open items
 
