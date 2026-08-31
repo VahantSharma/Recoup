@@ -94,6 +94,62 @@ def test_readme_bound_decomposition_gaps_match_the_real_artifact():
     )
 
 
+def test_frontend_gross_and_incremental_money_figures_match_the_real_artifact():
+    """The buildathon rubric's own words are 'measured money recovered across a
+    batch' -- so the gross rupee figure has to actually be on screen, not just the
+    incremental one. Both numbers, and the CI, are checked directly against the
+    source code for Landing.tsx and AblationTableScreen.tsx (they compute the
+    figures from the loaded artifact at render time, so there's no separate
+    hardcoded string to compare against a stale one -- this instead proves the
+    exact source expression is still wired to the live artifact fields, not
+    accidentally reading a different field or a hardcoded fallback)."""
+    data = _day3_ablation()
+    rules_only = next(a for a in data["arms"] if a["arm"] == "rules_only")
+    lift = next(l for l in data["lifts"] if l["arm_a"] == "rules_only" and l["arm_b"] == "control")
+    assert rules_only["recovered_amount_paise"] > 0, "sanity check on the artifact itself"
+    assert lift["amount_lift_paise"] > 0, "sanity check on the artifact itself"
+
+    for path in (
+        REPO_ROOT / "frontend" / "src" / "components" / "Landing.tsx",
+        REPO_ROOT / "frontend" / "src" / "components" / "AblationTableScreen.tsx",
+    ):
+        text = path.read_text(encoding="utf-8")
+        assert "recovered_amount_paise" in text, (
+            f"{path.name} no longer reads recovered_amount_paise -- the gross "
+            "money-recovered figure the rubric asks for by name must come from this "
+            "field, never a hand-typed number."
+        )
+        assert "amount_lift_paise" in text and "amount_lift_ci_low_paise" in text and "amount_lift_ci_high_paise" in text, (
+            f"{path.name} no longer reads the incremental lift figure and its "
+            "confidence interval from the real artifact fields."
+        )
+        assert "recover on their own" in text and "untrustworthy" in text, (
+            f"{path.name} shows the gross figure without the 'some payments recover "
+            "on their own... untrustworthy' explanation next to it -- the whole "
+            "point of showing both numbers is that the honest one doesn't stand alone."
+        )
+
+
+def test_rubric_mapping_table_present_in_readme_and_architecture():
+    """The buildathon rubric (Track 03) names seven things a submission has to
+    demonstrate. Both README.md and architecture.md must map every one of them to
+    a real, findable place in this repo -- a reviewer working off the rubric's own
+    checklist should never have to hunt."""
+    rubric_clauses = [
+        "detects revenue at risk",
+        "determines the intervention",
+        "executes",
+        "money recovered across a batch",
+        "compliant escalation",
+        "stopping rules",
+        "audit trail",
+    ]
+    for label, path in (("README.md", README_MD), ("architecture.md", REPO_ROOT / "architecture.md")):
+        text = path.read_text(encoding="utf-8").lower()
+        for clause in rubric_clauses:
+            assert clause in text, f"{label} is missing a mapping for the rubric clause {clause!r}"
+
+
 def test_readme_test_count_badge_matches_the_real_suite():
     """The test-count badge in README.md's title block is a number embedded in a
     shields.io URL -- exactly as prone to silent drift as any other hand-typed figure,

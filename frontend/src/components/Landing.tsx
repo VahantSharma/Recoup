@@ -3,6 +3,7 @@ import "./Landing.css";
 import { loadDay3Ablation } from "../lib/artifacts/loader";
 import { withProvenance } from "../lib/artifacts/provenance";
 import type { ArtifactEnvelope, Day3AblationArtifact } from "../lib/artifacts/types";
+import { formatPaise } from "../lib/format";
 import { ErrorScreen, LoadingSkeleton } from "./ScreenChrome";
 import { Badge } from "./Badge";
 import { Figure } from "./Figure";
@@ -56,6 +57,7 @@ export function Landing({ onNavigate }: { onNavigate: (hash: string) => void }) 
 
   const { ablation } = state;
   const liftRow = ablation.data.lifts.find((l) => l.arm_a === "rules_only" && l.arm_b === "control")!;
+  const rulesOnlyArm = ablation.data.arms.find((a) => a.arm === "rules_only")!;
   const violations = ablation.data.compliance.violations_blind_retry;
   // Deliberately a Day 3 number, not Day 4's bound-decomposition headroom figure --
   // docs/results.md flags every Day 4 number "pending verification" (it hasn't been
@@ -84,6 +86,43 @@ export function Landing({ onNavigate }: { onNavigate: (hash: string) => void }) 
           <strong>Check any of them yourself</strong> — click one to see exactly which
           run produced it.
         </p>
+
+        <div className="landing-money">
+          <div className="landing-money-row">
+            <span className="landing-money-label">Money recovered across the batch</span>
+            <span className="landing-money-value">
+              <Figure
+                mono
+                value={withProvenance(
+                  formatPaise(rulesOnlyArm.recovered_amount_paise),
+                  ablation.manifest,
+                  "/data/day3_ablation.json",
+                )}
+              />
+              <span className="landing-money-n">n = {ablation.data.n.toLocaleString("en-IN")} cases</span>
+            </span>
+          </div>
+          <div className="landing-money-row">
+            <span className="landing-money-label">Incremental over control</span>
+            <span className="landing-money-value">
+              <Figure
+                mono
+                value={withProvenance(
+                  `${formatPaise(liftRow.amount_lift_paise)} [${formatPaise(liftRow.amount_lift_ci_low_paise)}–${formatPaise(liftRow.amount_lift_ci_high_paise)}]`,
+                  ablation.manifest,
+                  "/data/day3_ablation.json",
+                )}
+              />
+            </span>
+          </div>
+          <p className="landing-money-why">
+            <strong>Why the second number is the honest one:</strong> some payments
+            recover on their own; claiming those is what makes recovery vendors
+            untrustworthy. The gross figure above is real and traces to the same run —
+            we're not hiding it — but the incremental number is the one we'd stake a
+            claim on.
+          </p>
+        </div>
 
         <div className="landing-stats">
           <div className="landing-stat">

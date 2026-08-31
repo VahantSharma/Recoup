@@ -14,10 +14,12 @@ import {
 } from "recharts";
 import "./AblationTableScreen.css";
 import { loadDay3Ablation, loadDay4HeldOutAblation } from "../lib/artifacts/loader";
+import { withProvenance } from "../lib/artifacts/provenance";
 import type { ArmHeldOutRow, ArtifactEnvelope, Day3AblationArtifact, Day4HeldOutAblationArtifact } from "../lib/artifacts/types";
 import { formatPaise, formatPercent, formatSigned } from "../lib/format";
 import { armLabel } from "../lib/plainLanguage";
 import { Badge } from "./Badge";
+import { Figure } from "./Figure";
 import { GlossaryTerm } from "./GlossaryTerm";
 import { ErrorScreen, LoadingSkeleton, Masthead, ProvenanceStrip } from "./ScreenChrome";
 
@@ -68,6 +70,8 @@ export function AblationTableScreen() {
   const shippableLift = liftData(shippable);
   const analysisLift = liftData(analysisOnly);
   const compliance = state.compliance.data.compliance;
+  const rulesOnlyArm = state.compliance.data.arms.find((a) => a.arm === "rules_only")!;
+  const controlLift = state.compliance.data.lifts.find((l) => l.arm_a === "rules_only" && l.arm_b === "control")!;
 
   return (
     <main className="screen">
@@ -83,6 +87,46 @@ export function AblationTableScreen() {
         }
       />
       <ProvenanceStrip shortSha={shortSha} artifactUrl={HELD_OUT_URL} />
+
+      <div className="section money-section">
+        <h2 className="section-title">How much money did this actually recover?</h2>
+        <div className="card money-block">
+          <div className="money-row">
+            <span className="money-label">Money recovered across the batch</span>
+            <span className="money-value">
+              <Figure
+                mono
+                value={withProvenance(
+                  formatPaise(rulesOnlyArm.recovered_amount_paise),
+                  state.compliance.manifest,
+                  "/data/day3_ablation.json",
+                )}
+              />
+              <span className="money-n">n = {state.compliance.data.n.toLocaleString("en-IN")} cases</span>
+            </span>
+          </div>
+          <div className="money-row">
+            <span className="money-label">Incremental over control</span>
+            <span className="money-value">
+              <Figure
+                mono
+                value={withProvenance(
+                  `${formatPaise(controlLift.amount_lift_paise)} [${formatPaise(controlLift.amount_lift_ci_low_paise)}–${formatPaise(controlLift.amount_lift_ci_high_paise)}]`,
+                  state.compliance.manifest,
+                  "/data/day3_ablation.json",
+                )}
+              />
+            </span>
+          </div>
+          <p className="money-why">
+            <strong>Why the second number is the honest one:</strong> some payments
+            recover on their own; claiming those is what makes recovery vendors
+            untrustworthy. The gross figure above is real and traces to the same run —
+            we're not hiding it — but the incremental number is the one we'd stake a
+            claim on.
+          </p>
+        </div>
+      </div>
 
       <div className="section">
         <h2 className="section-title">How much extra do we recover, compared to our rules engine? (Approaches we could actually ship)</h2>

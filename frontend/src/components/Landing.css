@@ -55,6 +55,70 @@
   font-style: normal;
 }
 
+/* --- the two money numbers: gross first (what the rubric asks for, in its own
+   words), incremental second (what we'd actually stake a claim on) --- */
+
+.landing-money {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-card);
+  padding: var(--sp-5) var(--sp-6);
+  margin-bottom: var(--sp-8);
+}
+
+.landing-money-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+}
+
+.landing-money-row + .landing-money-row {
+  border-top: 1px dashed var(--border);
+}
+
+.landing-money-label {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.landing-money-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.landing-money-value .figure-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.landing-money-n {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs-size);
+  color: var(--text-faint);
+}
+
+.landing-money-why {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin: var(--sp-3) 0 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+.landing-money-why strong {
+  color: var(--text);
+  font-style: normal;
+}
+
 /* --- three headline stats --- */
 
 .landing-stats {

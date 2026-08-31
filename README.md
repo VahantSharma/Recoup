@@ -4,7 +4,7 @@
 Works a failed Razorpay payment after it dies — classifies it, decides whether a retry is safe, checks that against a fixed set of rules, acts only if permitted, and measures the effect against a control group.
 
 [![CI](https://github.com/VahantSharma/Recoup/actions/workflows/ci.yml/badge.svg)](https://github.com/VahantSharma/Recoup/actions/workflows/ci.yml)
-![tests](https://img.shields.io/badge/tests-296%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-298%20passing-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![python](https://img.shields.io/badge/python-3.11-blue)
 ![node](https://img.shields.io/badge/node-18%2B-blue)
@@ -12,6 +12,22 @@ Works a failed Razorpay payment after it dies — classifies it, decides whether
 ## The claim
 
 Most of a failed payment's value just gets written off. Recoup works the case after the attempt died: classifies why, decides whether a retry is safe, checks that decision against a fixed set of rules, and measures whether acting actually helped — against a matched group where nothing was done. Every number on this page survives a follow-up question, and [`VERIFY.md`](VERIFY.md) tells you the exact command to check each one yourself.
+
+## Track 03 (AI Revenue Recovery) rubric, mapped
+
+The rubric's own words: *"measured money recovered across a batch, with compliant
+escalation, stopping rules, and an audit trail."* Every clause, in order, tied to
+where it's actually demonstrated — not just claimed:
+
+| Rubric clause | Demonstrated by |
+|---|---|
+| Detects revenue at risk | The taxonomy (`app/taxonomy.py`) classifying every failed payment, over the corpus (`app/corpus_builder.py`) — see "System architecture" below |
+| Determines the intervention | The policy proposing an action, checked by the gate (`app/gate.py`) — see "One case, end to end" below |
+| Executes a bounded workflow | The live endpoint (`app/main.py`), the eight guardrails, and the case state machine — see "Safety mechanisms" in [`architecture.md`](architecture.md) |
+| **Money recovered across a batch** | The Ablation Table screen's "How much money did this actually recover?" section — both the real gross figure and the incremental one, below |
+| Compliant escalation | The route-to-human guardrails (`unclassifiable_decline_human_review`, `risk_hard_stop`, `amount_ceiling_needs_signoff`) |
+| Stopping rules | `hard_decline_stop`, the network attempt budget, `break_even_floor` |
+| Audit trail | The Case Audit screen, every figure's manifest provenance, `docs/audit.md` |
 
 ## See it
 
@@ -28,9 +44,8 @@ cd frontend && npm install && npm run dev        # terminal 2 — the screen its
 Open the URL `npm run dev` prints (default `http://localhost:5173`). Or run `./run.sh` to do all of the above in one command and print the URL for you. Full setup (keys, troubleshooting): [`SETUP.md`](SETUP.md).
 
 **New here?** [`REVIEWING.md`](REVIEWING.md) has a 2/10/30-minute reading path.
-[`architecture.md`](architecture.md) has components, boundaries, and data flow
-(currently a stub pointing at where that content actually lives today — see the file
-itself).
+[`architecture.md`](architecture.md) has components, boundaries, data flow, and the
+full rubric mapping below.
 
 ## Where every number comes from
 

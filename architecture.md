@@ -8,8 +8,9 @@ written off. Recoup works the case *after* the attempt died: it classifies why t
 payment failed, decides whether a retry is safe, checks that decision against a fixed
 set of rules that live outside any model, acts only when permitted, and measures
 whether acting actually helped — against a matched control group that got no action at
-all, on the identical batch of payments. The headline metric is always incremental
-lift over doing nothing, never gross recovery.
+all, on the identical batch of payments. We report the real gross figure too — the
+rubric asks for it by name — but the claim we'd actually stake is the incremental one,
+next to a matched control, never gross recovery on its own.
 
 This document describes what the system actually is: its components and the
 boundaries between them, how one case moves through it, every safety mechanism that
@@ -19,6 +20,22 @@ part of the decision. For the day-by-day account of how it got built this way, s
 [`docs/buildathon-plan.md`](docs/buildathon-plan.md) and
 [`docs/results.md`](docs/results.md). For a command that checks any specific claim
 below yourself, see [`VERIFY.md`](VERIFY.md).
+
+## Track 03 (AI Revenue Recovery) rubric, mapped
+
+The rubric's own words: *"measured money recovered across a batch, with compliant
+escalation, stopping rules, and an audit trail."* Every clause, tied to where it's
+actually demonstrated:
+
+| Rubric clause | Demonstrated by |
+|---|---|
+| Detects revenue at risk | The taxonomy classifying every failed payment, over the corpus — see "Components" below |
+| Determines the intervention | The policy proposing an action, checked by the gate — see "One case, end to end" below |
+| Executes a bounded workflow | The live endpoint, the eight guardrails, and the case state machine — see "Safety mechanisms" below |
+| **Money recovered across a batch** | The Ablation Table screen's "How much money did this actually recover?" section — the real gross figure and the incremental one, both from the same run |
+| Compliant escalation | The route-to-human guardrails (`unclassifiable_decline_human_review`, `risk_hard_stop`, `amount_ceiling_needs_signoff`) |
+| Stopping rules | `hard_decline_stop`, the network attempt budget, `break_even_floor` |
+| Audit trail | The Case Audit screen, every figure's manifest provenance, `docs/audit.md` |
 
 ## Where every fact in this document comes from
 
