@@ -2,7 +2,7 @@
   "schema_name": "case_audit",
   "schema_version": "1.0.0",
   "manifest": {
-    "git_sha": "b0bfc1536c80244c73a0dc7f598f0b974587cbd1",
+    "git_sha": "e11c4ade54bf13a28bff3cccbc34a2b83c3e5c56",
     "script": "scripts/export_case_audit.py",
     "schema_name": "case_audit",
     "schema_version": "1.0.0",
