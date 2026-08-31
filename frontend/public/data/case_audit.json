@@ -2,11 +2,11 @@
   "schema_name": "case_audit",
   "schema_version": "1.0.0",
   "manifest": {
-    "git_sha": "e11c4ade54bf13a28bff3cccbc34a2b83c3e5c56",
+    "git_sha": "735cdada659ccb08c699d80f16406eeaa5e90438",
     "script": "scripts/export_case_audit.py",
     "schema_name": "case_audit",
     "schema_version": "1.0.0",
-    "generated_at": "2026-08-31T14:27:44.331993Z",
+    "generated_at": "2026-08-31T14:47:46.474751Z",
     "seed": 42,
     "corpus_hash": "9551c3ed0f309e69d3112eceb05492ca5fe0ac0b8fd9188e0fe1fe20ec859bea",
     "policy_params": {
