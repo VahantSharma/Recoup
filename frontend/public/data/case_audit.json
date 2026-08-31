@@ -2,13 +2,13 @@
   "schema_name": "case_audit",
   "schema_version": "1.0.0",
   "manifest": {
-    "git_sha": "af984dbc6ab992e484981e16397ecdd4b572e355",
+    "git_sha": "b0bfc1536c80244c73a0dc7f598f0b974587cbd1",
     "script": "scripts/export_case_audit.py",
     "schema_name": "case_audit",
     "schema_version": "1.0.0",
-    "generated_at": "2026-08-27T16:07:43.241232Z",
+    "generated_at": "2026-08-31T14:27:44.331993Z",
     "seed": 42,
-    "corpus_hash": "0ecf54b7d99d3fed37155c7ab7dd35952adf951400808b29c26dc19948d0e777",
+    "corpus_hash": "9551c3ed0f309e69d3112eceb05492ca5fe0ac0b8fd9188e0fe1fe20ec859bea",
     "policy_params": {
       "COST_PER_CONTACT_ATTEMPT_MILLI_PAISE": 11500,
       "ATTEMPT_DECAY_FACTOR": 0.7,
@@ -120,25 +120,25 @@
         "outcome": "recovered"
       },
       {
-        "case_id": "pay_synth_fd757360b659b98e",
+        "case_id": "pay_synth_f4bdab2320f99993",
         "case_kind": "corpus",
         "crafted_note": null,
         "decline_class": "soft",
         "decline_class_source": "documented",
         "error_code": null,
-        "error_reason": "transaction_limit_exceeded",
+        "error_reason": "insufficient_funds",
         "error_description": null,
-        "amount_paise": 100946,
+        "amount_paise": 224821,
         "gate_calls": [
           {
             "attempt_number": 1,
-            "at": "2026-01-28T19:30:51.510413Z",
+            "at": "2026-01-30T04:29:06.523032Z",
             "proposal_action_type": "retry_payment_link",
-            "proposal_amount_paise": 100946,
+            "proposal_amount_paise": 224821,
             "decision": "rejected",
             "reason": "network_attempt_budget_exhausted",
             "route_to": null,
-            "idempotency_key": "3d143d24f2de02b125cd044010e507bf29cde380d2c08c94142cb6884845cda0",
+            "idempotency_key": "dc9e6f5a48013b00deefa455845d9daf2a6cc1dbfb86b29a8b5283a259aff8c6",
             "guardrail_table": [
               {
                 "name": "stale_reconcile",
@@ -191,30 +191,106 @@
             ]
           }
         ],
-        "final_status": "recovered",
+        "final_status": "gave_up_gate_rejected",
         "route_to": null,
-        "outcome": "recovered"
+        "outcome": "not_recovered"
       },
       {
-        "case_id": "pay_synth_b9c279e145616842",
+        "case_id": "pay_synth_1884fc924e800e06",
+        "case_kind": "corpus",
+        "crafted_note": null,
+        "decline_class": "soft",
+        "decline_class_source": "documented",
+        "error_code": null,
+        "error_reason": "debit_declined",
+        "error_description": null,
+        "amount_paise": 778874,
+        "gate_calls": [
+          {
+            "attempt_number": 1,
+            "at": "2026-01-17T18:55:49.979124Z",
+            "proposal_action_type": "retry_payment_link",
+            "proposal_amount_paise": 778874,
+            "decision": "rejected",
+            "reason": "amount_ceiling_needs_signoff",
+            "route_to": "NEEDS_REVIEW",
+            "idempotency_key": "9690dfa7139414d904a0bf00a394605892da3e805bd6cce8ca0e3dbdda25d956",
+            "guardrail_table": [
+              {
+                "name": "stale_reconcile",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "unclassifiable_decline_human_review",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "hard_decline_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "risk_hard_stop",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "already_resolved",
+                "evaluated": true,
+                "fired": false,
+                "note": ""
+              },
+              {
+                "name": "amount_ceiling_needs_signoff",
+                "evaluated": true,
+                "fired": true,
+                "note": ""
+              },
+              {
+                "name": "network_attempt_budget_exhausted",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at amount_ceiling_needs_signoff"
+              },
+              {
+                "name": "break_even_floor",
+                "evaluated": false,
+                "fired": false,
+                "note": "not evaluated -- short-circuited at amount_ceiling_needs_signoff"
+              }
+            ]
+          }
+        ],
+        "final_status": "gave_up_gate_rejected",
+        "route_to": "NEEDS_REVIEW",
+        "outcome": "deferred_to_human_review"
+      },
+      {
+        "case_id": "pay_synth_840f63b1d151c73c",
         "case_kind": "corpus",
         "crafted_note": null,
         "decline_class": "hard",
         "decline_class_source": "documented",
         "error_code": null,
-        "error_reason": "debit_instrument_blocked",
+        "error_reason": "payment_risk_check_failed",
         "error_description": null,
-        "amount_paise": 174656,
+        "amount_paise": 40056,
         "gate_calls": [
           {
             "attempt_number": 1,
-            "at": "2026-01-19T07:59:04.647678Z",
+            "at": "2026-01-26T05:04:26.226739Z",
             "proposal_action_type": "retry_payment_link",
-            "proposal_amount_paise": 174656,
+            "proposal_amount_paise": 40056,
             "decision": "rejected",
             "reason": "hard_decline_stop",
             "route_to": null,
-            "idempotency_key": "25b67bd2955b58f232292c00e03e90015d7e974cb3ac5ce6b7510e7b5b48bb8a",
+            "idempotency_key": "109f5baba0ce8f7e83c7dc420a233625cc653f173fad174b331303f850e68cd2",
             "guardrail_table": [
               {
                 "name": "stale_reconcile",
@@ -272,101 +348,25 @@
         "outcome": "not_recovered"
       },
       {
-        "case_id": "pay_synth_2a465d136da49613",
-        "case_kind": "corpus",
-        "crafted_note": null,
-        "decline_class": "soft",
-        "decline_class_source": "documented",
-        "error_code": null,
-        "error_reason": "insufficient_funds",
-        "error_description": null,
-        "amount_paise": 565201,
-        "gate_calls": [
-          {
-            "attempt_number": 1,
-            "at": "2026-01-05T10:22:31.641433Z",
-            "proposal_action_type": "retry_payment_link",
-            "proposal_amount_paise": 565201,
-            "decision": "rejected",
-            "reason": "amount_ceiling_needs_signoff",
-            "route_to": "NEEDS_REVIEW",
-            "idempotency_key": "d58d781dcff0913fd604c8b4f06f91e0835d2643528ac919726cd13a535f6022",
-            "guardrail_table": [
-              {
-                "name": "stale_reconcile",
-                "evaluated": true,
-                "fired": false,
-                "note": ""
-              },
-              {
-                "name": "unclassifiable_decline_human_review",
-                "evaluated": true,
-                "fired": false,
-                "note": ""
-              },
-              {
-                "name": "hard_decline_stop",
-                "evaluated": true,
-                "fired": false,
-                "note": ""
-              },
-              {
-                "name": "risk_hard_stop",
-                "evaluated": true,
-                "fired": false,
-                "note": ""
-              },
-              {
-                "name": "already_resolved",
-                "evaluated": true,
-                "fired": false,
-                "note": ""
-              },
-              {
-                "name": "amount_ceiling_needs_signoff",
-                "evaluated": true,
-                "fired": true,
-                "note": ""
-              },
-              {
-                "name": "network_attempt_budget_exhausted",
-                "evaluated": false,
-                "fired": false,
-                "note": "not evaluated -- short-circuited at amount_ceiling_needs_signoff"
-              },
-              {
-                "name": "break_even_floor",
-                "evaluated": false,
-                "fired": false,
-                "note": "not evaluated -- short-circuited at amount_ceiling_needs_signoff"
-              }
-            ]
-          }
-        ],
-        "final_status": "gave_up_gate_rejected",
-        "route_to": "NEEDS_REVIEW",
-        "outcome": "deferred_to_human_review"
-      },
-      {
-        "case_id": "pay_synth_aca2b1996e50a741",
+        "case_id": "pay_synth_1e2cfcc5ba506637",
         "case_kind": "corpus",
         "crafted_note": null,
         "decline_class": "unknown",
         "decline_class_source": "unknown",
         "error_code": null,
-        "error_reason": "unrecognized_reason_81074756",
+        "error_reason": "unrecognized_reason_db5666b6",
         "error_description": null,
-        "amount_paise": 110339,
+        "amount_paise": 758974,
         "gate_calls": [
           {
             "attempt_number": 1,
-            "at": "2026-01-05T03:44:09.765321Z",
+            "at": "2026-01-30T18:34:48.640225Z",
             "proposal_action_type": "retry_payment_link",
-            "proposal_amount_paise": 110339,
+            "proposal_amount_paise": 758974,
             "decision": "rejected",
             "reason": "unclassifiable_decline_human_review",
             "route_to": "NEEDS_REVIEW",
-            "idempotency_key": "49608177ffcd20ea4068cd435ed6b8fc4507c091391581324754a70d881e665c",
+            "idempotency_key": "111e0c966e1fce96784a80fd3def2680b082ab46aa87a6250bfa1e393c3c6d1e",
             "guardrail_table": [
               {
                 "name": "stale_reconcile",
@@ -424,7 +424,7 @@
         "outcome": "deferred_to_human_review"
       },
       {
-        "case_id": "pay_synth_e45e924acf59735b",
+        "case_id": "pay_synth_a7bd9feeea695e19",
         "case_kind": "corpus",
         "crafted_note": null,
         "decline_class": "soft",
@@ -432,17 +432,17 @@
         "error_code": null,
         "error_reason": "payment_declined",
         "error_description": null,
-        "amount_paise": 1500368,
+        "amount_paise": 10022,
         "gate_calls": [
           {
             "attempt_number": 1,
-            "at": "2026-01-22T14:21:32.240019Z",
+            "at": "2026-01-11T00:22:24.278635Z",
             "proposal_action_type": "retry_payment_link",
-            "proposal_amount_paise": 1500368,
+            "proposal_amount_paise": 10022,
             "decision": "rejected",
             "reason": "risk_hard_stop",
             "route_to": "NEEDS_REVIEW",
-            "idempotency_key": "74e97fd90b85b68bfb669f7ba9a0d27d8d7e9c1c06a3203f5be0c70568d9db5c",
+            "idempotency_key": "bfa4dba6c0116a804e817909bc534ed534593465a73d6c4f2cd3ae271dfd86b8",
             "guardrail_table": [
               {
                 "name": "stale_reconcile",
